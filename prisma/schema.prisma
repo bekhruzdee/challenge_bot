@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RegistrationStep {
+  RULES
+  CHECKING_SUB
+  ASK_FIRST_NAME
+  ASK_LAST_NAME
+  ASK_PHONE
+  ASK_REGION
+}
+
+model User {
+  id                    Int           @id @default(autoincrement())
+  telegramId            BigInt        @unique
+  telegramUsername      String?
+  firstName             String?
+  lastName              String?
+  phone                 String?
+  region                String?
+  points                Int           @default(0)
+  isActive              Boolean       @default(true)
+  registrationCompleted Boolean       @default(false)
+  storyBonusGiven       Boolean       @default(false)
+  referrerId            Int?
+  referrer              User?         @relation("UserReferrals", fields: [referrerId], references: [id])
+  referrals             User[]        @relation("UserReferrals")
+  session               UserSession?
+  locations             Location[]
+  progress              Progress[]
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  lastActivityAt        DateTime?
+
+  @@index([referrerId])
+  @@map("users")
+}
+
+model UserSession {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @unique
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step      RegistrationStep @default(RULES)
+  data      Json             @default("{}")
+  updatedAt DateTime         @updatedAt
+
+  @@map("user_sessions")
+}
+
+model Location {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latitude   Float
+  longitude  Float
+  recordedAt DateTime @default(now())
+
+  @@index([userId, recordedAt(sort: Desc)])
+  @@map("locations")
+}
+
+model Progress {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime @db.Date
+  totalMeters   Float    @default(0)
+  totalSteps    Int      @default(0)
+  goalReached   Boolean  @default(false)
+  pointsAwarded Boolean  @default(false)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_progress")
+}
