@@ -52,7 +52,9 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    if (result.wasFiltered) return;
+    // Stay silent for the first location (initialisation only) and for
+    // updates rejected by the validity / speed gate.
+    if (result.isFirstLocation || result.wasFiltered) return;
 
     await ctx.reply(this.buildLocationReply(result), {
       parse_mode: 'Markdown',
@@ -72,14 +74,6 @@ export class MainMenuUpdate implements OnModuleInit {
       `📏 *Masofa:* ${km} km\n` +
       `⏳ *Qolgan:* ${remainStr} qadam\n` +
       status;
-
-    if (r.isFirstLocation) {
-      return (
-        `📍 *Boshlang'ich nuqta saqlandi!*\n\n` +
-        `Har safar joylashuvingizni yuboring — qadamlar hisoblanadi.\n\n` +
-        stats
-      );
-    }
 
     if (r.goalJustReached) {
       return `🎉 *Tabriklaymiz! Kunlik maqsad bajarildi!*\n\n${stats}\n\n🏆 *+100 ball oldiniz!*`;
