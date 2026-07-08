@@ -27,6 +27,7 @@ export class MainMenuUpdate implements OnModuleInit {
     composer.on(['message:location', 'edited_message:location'], (ctx) =>
       this.onLocation(ctx),
     );
+    composer.hears(MAIN_MENU.LOCATION, (ctx) => this.onLocationButton(ctx));
     composer.hears(MAIN_MENU.BALANCE, (ctx) => this.onBalance(ctx));
     composer.hears(MAIN_MENU.RATING, (ctx) => this.onRating(ctx));
     composer.hears(MAIN_MENU.REFERRAL, (ctx) => this.onReferral(ctx));
@@ -37,8 +38,36 @@ export class MainMenuUpdate implements OnModuleInit {
 
   // ─── Location ────────────────────────────────────────────────────────────────
 
+  private async onLocationButton(ctx: Context): Promise<void> {
+    await ctx.reply(
+      '📍 *Jonli joylashuvni ulashing*\n\n' +
+        'Qadamlarni hisoblash uchun *Live Location* yuboring:\n\n' +
+        '1. Xabar maydonidagi *📎* tugmasini bosing\n' +
+        '2. *Lokatsiya* ni tanlang\n' +
+        '3. *Jonli joylashuvni ulashish* ni tanlang\n' +
+        '4. Ulashish vaqtini tanlang va yuboring\n\n' +
+        '⚠️ Oddiy bir martalik lokatsiya qabul qilinmaydi.',
+      { parse_mode: 'Markdown' },
+    );
+  }
+
   private async onLocation(ctx: Context): Promise<void> {
-    const { latitude, longitude } = ctx.msg!.location!;
+    const location = ctx.msg!.location!;
+
+    // ctx.message is defined for message:location (initial share).
+    // ctx.editedMessage is defined for edited_message:location (live updates).
+    // live_period is only present on Live Location messages; one-time locations omit it.
+    if (ctx.message && !location.live_period) {
+      await ctx.reply(
+        '⚠️ *Oddiy lokatsiya qabul qilinmadi.*\n\n' +
+          'Qadamlarni hisoblash uchun *Telegram Live Location* ni yuboring:\n\n' +
+          '📎 → Lokatsiya → *"Jonli joylashuvni ulashish"* (Share My Live Location)',
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
+
+    const { latitude, longitude } = location;
     const telegramId = BigInt(ctx.from!.id);
 
     const result = await this.locationService.processLocationByTelegramId(
@@ -52,9 +81,18 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    // Stay silent for the first location (initialisation only) and for
-    // updates rejected by the validity / speed gate.
-    if (result.isFirstLocation || result.wasFiltered) return;
+    // Updates rejected by the validity / speed gate are always silent.
+    if (result.wasFiltered) return;
+
+    // First Live Location of the day: confirm tracking has started.
+    if (result.isFirstLocation) {
+      await ctx.reply(
+        '✅ *Jonli joylashuv qabul qilindi.*\n' +
+          '🚶 Tracking boshlandi. Yurishni boshlashingiz mumkin.',
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
 
     await ctx.reply(this.buildLocationReply(result), {
       parse_mode: 'Markdown',
