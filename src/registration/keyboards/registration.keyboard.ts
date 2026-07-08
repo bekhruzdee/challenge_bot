@@ -7,9 +7,9 @@ export function rulesKeyboard(): InlineKeyboard {
 
 export function notSubscribedKeyboard(channelLink: string): InlineKeyboard {
   return new InlineKeyboard()
-    .url("📢 Kanalga o'tish", channelLink)
+    .url("📢 Obuna bo'lish", channelLink)
     .row()
-    .text("✅ Obuna bo'ldim", 'reg:check_sub');
+    .text('Tekshirish ✅', 'reg:check_sub');
 }
 
 export function contactKeyboard(): Keyboard {
