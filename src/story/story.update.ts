@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Bot, Composer, Context } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
+import { I18nService } from '../i18n/i18n.service';
 import { UsersService } from '../users/users.service';
 import { StoryService } from './story.service';
-import { MAIN_MENU } from '../main-menu/main-menu.constants';
 
 @Injectable()
 export class StoryUpdate implements OnModuleInit {
@@ -13,12 +13,16 @@ export class StoryUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly usersService: UsersService,
     private readonly storyService: StoryService,
+    private readonly i18n: I18nService,
   ) {}
 
   onModuleInit(): void {
     const composer = new Composer<Context>();
 
-    composer.hears(MAIN_MENU.STORY, (ctx) => this.onStoryButton(ctx));
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.storyBtn),
+      (ctx) => this.onStoryButton(ctx),
+    );
     composer.on('message:photo', (ctx) => this.onPhoto(ctx));
 
     this.bot.use(composer);
@@ -26,13 +30,11 @@ export class StoryUpdate implements OnModuleInit {
   }
 
   private async onStoryButton(ctx: Context): Promise<void> {
-    await ctx.reply(
-      '📸 *Hikoya yuborish*\n\n' +
-        "Kundalik faolligingiz haqida foto hikoya yuboring.\n" +
-        "Admin tasdiqlashidan so'ng *+30 ball* olasiz!\n\n" +
-        '📎 Rasm yuboring (ixtiyoriy sarlavha bilan).',
-      { parse_mode: 'Markdown' },
+    const user = await this.usersService.findByTelegramId(
+      BigInt(ctx.from!.id),
     );
+    const t = this.i18n.t(user?.language);
+    await ctx.reply(t.story.prompt, { parse_mode: 'Markdown' });
   }
 
   private async onPhoto(ctx: Context): Promise<void> {
@@ -41,16 +43,16 @@ export class StoryUpdate implements OnModuleInit {
 
     if (!user || !user.registrationCompleted) return;
 
+    const t = this.i18n.t(user.language);
+
     if (user.storyBonusGiven) {
-      await ctx.reply("✅ Siz allaqachon hikoya bonusini oldingiz.");
+      await ctx.reply(t.story.alreadyBonused);
       return;
     }
 
     const hasPending = await this.storyService.hasPendingSubmission(user.id);
     if (hasPending) {
-      await ctx.reply(
-        "⏳ Sizning hikoyangiz ko'rib chiqilmoqda. Iltimos, kuting.",
-      );
+      await ctx.reply(t.story.pending);
       return;
     }
 
@@ -59,11 +61,6 @@ export class StoryUpdate implements OnModuleInit {
     const caption = ctx.msg!.caption ?? undefined;
 
     await this.storyService.createSubmission(user.id, fileId, caption);
-
-    await ctx.reply(
-      '✅ *Hikoyangiz yuborildi!*\n\n' +
-        "Admin ko'rib chiqqandan so'ng sizga *+30 ball* beriladi.",
-      { parse_mode: 'Markdown' },
-    );
+    await ctx.reply(t.story.submitted, { parse_mode: 'Markdown' });
   }
 }

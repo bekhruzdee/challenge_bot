@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { RegistrationStep, User, UserSession } from '@prisma/client';
+import { Language, RegistrationStep, User, UserSession } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { RegistrationData } from './interfaces/registration-data.interface';
@@ -55,6 +55,10 @@ export class RegistrationService {
       update: { step, data },
       create: { userId, step, data },
     });
+  }
+
+  setLanguage(userId: number, language: Language): Promise<User> {
+    return this.usersService.update(userId, { language });
   }
 
   async completeRegistration(

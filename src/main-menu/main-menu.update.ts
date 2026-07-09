@@ -2,9 +2,10 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, Composer, Context } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
+import { I18nService } from '../i18n/i18n.service';
+import { Translations } from '../i18n/types/translations.interface';
 import { LeaderboardEntry, UsersService } from '../users/users.service';
 import { LocationResult, LocationService } from '../location/location.service';
-import { MAIN_MENU } from './main-menu.constants';
 
 const DAILY_GOAL_STEPS = 10_000;
 const REFERRAL_BONUS_PER_USER = 15;
@@ -19,6 +20,7 @@ export class MainMenuUpdate implements OnModuleInit {
     private readonly locationService: LocationService,
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
+    private readonly i18n: I18nService,
   ) {}
 
   onModuleInit(): void {
@@ -27,102 +29,107 @@ export class MainMenuUpdate implements OnModuleInit {
     composer.on(['message:location', 'edited_message:location'], (ctx) =>
       this.onLocation(ctx),
     );
-    composer.hears(MAIN_MENU.LOCATION, (ctx) => this.onLocationButton(ctx));
-    composer.hears(MAIN_MENU.BALANCE, (ctx) => this.onBalance(ctx));
-    composer.hears(MAIN_MENU.RATING, (ctx) => this.onRating(ctx));
-    composer.hears(MAIN_MENU.REFERRAL, (ctx) => this.onReferral(ctx));
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.locationBtn),
+      (ctx) => this.onLocationButton(ctx),
+    );
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.balanceBtn),
+      (ctx) => this.onBalance(ctx),
+    );
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.ratingBtn),
+      (ctx) => this.onRating(ctx),
+    );
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.referralBtn),
+      (ctx) => this.onReferral(ctx),
+    );
 
     this.bot.use(composer);
     this.logger.log('Main menu handlers registered');
   }
 
-  // ─── Location ────────────────────────────────────────────────────────────────
+  // ─── Location button ─────────────────────────────────────────────────────────
 
   private async onLocationButton(ctx: Context): Promise<void> {
-    await ctx.reply(
-      '📍 *Jonli joylashuvni ulashing*\n\n' +
-        'Qadamlarni hisoblash uchun *Live Location* yuboring:\n\n' +
-        '1. Xabar maydonidagi *📎* tugmasini bosing\n' +
-        '2. *Lokatsiya* ni tanlang\n' +
-        '3. *Jonli joylashuvni ulashish* ni tanlang\n' +
-        '4. Ulashish vaqtini tanlang va yuboring\n\n' +
-        '⚠️ Oddiy bir martalik lokatsiya qabul qilinmaydi.',
-      { parse_mode: 'Markdown' },
+    const user = await this.usersService.findByTelegramId(
+      BigInt(ctx.from!.id),
     );
-  }
-
-  private async onLocation(ctx: Context): Promise<void> {
-    const location = ctx.msg!.location!;
-
-    // ctx.message is defined for message:location (initial share).
-    // ctx.editedMessage is defined for edited_message:location (live updates).
-    // live_period is only present on Live Location messages; one-time locations omit it.
-    if (ctx.message && !location.live_period) {
-      await ctx.reply(
-        '⚠️ *Oddiy lokatsiya qabul qilinmadi.*\n\n' +
-          'Qadamlarni hisoblash uchun *Telegram Live Location* ni yuboring:\n\n' +
-          '📎 → Lokatsiya → *"Jonli joylashuvni ulashish"* (Share My Live Location)',
-        { parse_mode: 'Markdown' },
-      );
-      return;
-    }
-
-    const { latitude, longitude } = location;
-    const telegramId = BigInt(ctx.from!.id);
-
-    const result = await this.locationService.processLocationByTelegramId(
-      telegramId,
-      latitude,
-      longitude,
-    );
-
-    if (!result) {
-      await ctx.reply("⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.");
-      return;
-    }
-
-    // Updates rejected by the validity / speed gate are always silent.
-    if (result.wasFiltered) return;
-
-    // First Live Location of the day: confirm tracking has started.
-    if (result.isFirstLocation) {
-      await ctx.reply(
-        '✅ *Jonli joylashuv qabul qilindi.*\n' +
-          '🚶 Tracking boshlandi. Yurishni boshlashingiz mumkin.',
-        { parse_mode: 'Markdown' },
-      );
-      return;
-    }
-
-    await ctx.reply(this.buildLocationReply(result), {
+    const t = this.i18n.t(user?.language);
+    await ctx.reply(t.mainMenu.locationInstruction, {
       parse_mode: 'Markdown',
     });
   }
 
-  private buildLocationReply(r: LocationResult): string {
+  // ─── Live location updates ───────────────────────────────────────────────────
+
+  private async onLocation(ctx: Context): Promise<void> {
+    const location = ctx.msg!.location!;
+    const telegramId = BigInt(ctx.from!.id);
+
+    if (ctx.message && !location.live_period) {
+      const user = await this.usersService.findByTelegramId(telegramId);
+      const t = this.i18n.t(user?.language);
+      await ctx.reply(t.mainMenu.staticLocationWarning, {
+        parse_mode: 'Markdown',
+      });
+      return;
+    }
+
+    const { latitude, longitude } = location;
+
+    const [user, result] = await Promise.all([
+      this.usersService.findByTelegramId(telegramId),
+      this.locationService.processLocationByTelegramId(
+        telegramId,
+        latitude,
+        longitude,
+      ),
+    ]);
+
+    const t = this.i18n.t(user?.language);
+
+    if (!result) {
+      await ctx.reply(t.mainMenu.userNotFound);
+      return;
+    }
+
+    if (result.wasFiltered) return;
+
+    if (result.isFirstLocation) {
+      await ctx.reply(t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
+      return;
+    }
+
+    await ctx.reply(this.buildLocationReply(result, t), {
+      parse_mode: 'Markdown',
+    });
+  }
+
+  private buildLocationReply(r: LocationResult, t: Translations): string {
     const km = (r.totalMeters / 1000).toFixed(2);
     const goalStr = DAILY_GOAL_STEPS.toLocaleString();
     const stepsStr = r.totalSteps.toLocaleString();
     const remainStr = r.remainingSteps.toLocaleString();
+    const m = t.mainMenu;
     const done = r.goalJustReached || r.alreadyReachedGoal;
-    const status = done ? '🔴 Maqsad bajarildi!' : '🟢 Jarayonda';
+    const status = done ? m.progressStatusDone : m.progressStatusInProgress;
 
     const stats =
-      `🚶 *Qadamlar:* ${stepsStr} / ${goalStr}\n` +
-      `📏 *Masofa:* ${km} km\n` +
-      `⏳ *Qolgan:* ${remainStr} qadam\n` +
+      `${m.progressSteps} ${stepsStr} / ${goalStr}\n` +
+      `${m.progressDistance} ${km} km\n` +
+      `${m.progressRemaining} ${remainStr} ${m.progressStepsUnit}\n` +
       status;
 
     if (r.goalJustReached) {
-      return `🎉 *Tabriklaymiz! Kunlik maqsad bajarildi!*\n\n${stats}\n\n🏆 *+100 ball oldiniz!*`;
+      return m.progressGoalJustReached(stats);
     }
-
     if (r.alreadyReachedGoal) {
-      return `✅ *Maqsad allaqachon bajarilgan!*\n\n${stats}`;
+      return m.progressAlreadyDone(stats);
     }
-
-    const delta = r.addedSteps > 0 ? ` *(+${r.addedSteps} qadam)*` : '';
-    return `📍 *Lokatsiya yangilandi*${delta}\n\n${stats}`;
+    const delta = r.addedSteps > 0 ? m.progressDelta(r.addedSteps) : '';
+    return m.progressUpdated(delta, stats);
   }
 
   // ─── Balance ─────────────────────────────────────────────────────────────────
@@ -130,8 +137,10 @@ export class MainMenuUpdate implements OnModuleInit {
   private async onBalance(ctx: Context): Promise<void> {
     const telegramId = BigInt(ctx.from!.id);
     const user = await this.usersService.findByTelegramId(telegramId);
+    const t = this.i18n.t(user?.language);
+
     if (!user) {
-      await ctx.reply("⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.");
+      await ctx.reply(t.mainMenu.userNotFound);
       return;
     }
 
@@ -140,22 +149,22 @@ export class MainMenuUpdate implements OnModuleInit {
       this.locationService.getTodayProgress(user.id),
     ]);
 
+    const m = t.mainMenu;
     let text =
-      `💰 *Mening balansim*\n\n` +
-      `🏅 Umumiy ball: *${user.points.toLocaleString()}*\n` +
-      `🏆 Reyting: *#${rank}*\n\n` +
-      `📍 *Bugungi natija:*\n`;
+      `${m.balanceTitle}\n\n` +
+      `${m.balanceTotalPoints(user.points.toLocaleString())}\n` +
+      `${m.balanceRankLabel(rank)}\n\n` +
+      `${m.balanceTodayTitle}\n`;
 
     if (todayProgress) {
       const km = (todayProgress.totalMeters / 1000).toFixed(2);
-      const steps = todayProgress.totalSteps.toLocaleString();
-      text += `🚶 Qadamlar: ${steps} / ${DAILY_GOAL_STEPS.toLocaleString()}\n`;
-      text += `📏 Masofa: ${km} km`;
+      text += `${m.balanceTodaySteps(todayProgress.totalSteps.toLocaleString(), DAILY_GOAL_STEPS.toLocaleString())}\n`;
+      text += m.balanceTodayDist(km);
       if (todayProgress.goalReached) {
-        text += '\n✅ Maqsad bajarildi!';
+        text += `\n${m.balanceTodayGoalDone}`;
       }
     } else {
-      text += 'Hali lokatsiya yuborilmagan';
+      text += m.balanceNoLocation;
     }
 
     await ctx.reply(text, { parse_mode: 'Markdown' });
@@ -166,8 +175,10 @@ export class MainMenuUpdate implements OnModuleInit {
   private async onRating(ctx: Context): Promise<void> {
     const telegramId = BigInt(ctx.from!.id);
     const user = await this.usersService.findByTelegramId(telegramId);
+    const t = this.i18n.t(user?.language);
+
     if (!user) {
-      await ctx.reply("⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.");
+      await ctx.reply(t.mainMenu.userNotFound);
       return;
     }
 
@@ -177,7 +188,7 @@ export class MainMenuUpdate implements OnModuleInit {
     ]);
 
     await ctx.reply(
-      this.buildLeaderboard(leaderboard, user.id, rank, user.points),
+      this.buildLeaderboard(leaderboard, user.id, rank, user.points, t),
       { parse_mode: 'Markdown' },
     );
   }
@@ -187,27 +198,28 @@ export class MainMenuUpdate implements OnModuleInit {
     currentUserId: number,
     currentRank: number,
     currentPoints: number,
+    t: Translations,
   ): string {
-    let text = '🏆 *TOP-10 Reyting*\n\n';
+    const m = t.mainMenu;
+    let text = `${m.ratingTitle}\n\n`;
 
     if (entries.length === 0) {
-      text += "Hali hech kim ro'yxatda yo'q.\n";
+      text += `${m.ratingEmpty}\n`;
     } else {
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
         const prefix = MEDALS[i] ?? `${i + 1}.`;
-        const name =
-          entry.firstName || entry.telegramUsername || 'Foydalanuvchi';
+        const name = entry.firstName || entry.telegramUsername || m.ratingAnon;
         const isMe = entry.id === currentUserId;
         const pts = entry.points.toLocaleString();
-        text += `${prefix} ${isMe ? '👤 ' : ''}${name} — ${pts} ball\n`;
+        text += `${prefix} ${isMe ? '👤 ' : ''}${name} — ${pts} ${t.common.points}\n`;
       }
     }
 
     const inTop10 = entries.some((e) => e.id === currentUserId);
     if (!inTop10) {
       text += '\n─────────────────\n';
-      text += `📊 *Sizning o'rningiz:* #${currentRank} — ${currentPoints.toLocaleString()} ball`;
+      text += m.ratingMyRank(currentRank, currentPoints.toLocaleString());
     }
 
     return text;
@@ -218,8 +230,10 @@ export class MainMenuUpdate implements OnModuleInit {
   private async onReferral(ctx: Context): Promise<void> {
     const telegramId = BigInt(ctx.from!.id);
     const user = await this.usersService.findByTelegramId(telegramId);
+    const t = this.i18n.t(user?.language);
+
     if (!user) {
-      await ctx.reply("⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.");
+      await ctx.reply(t.mainMenu.userNotFound);
       return;
     }
 
@@ -228,25 +242,24 @@ export class MainMenuUpdate implements OnModuleInit {
       Promise.resolve(this.configService.get<string>('BOT_USERNAME', '')),
     ]);
 
-    // Trim whitespace and strip an optional leading '@'; never alter the name further.
     const botUsername = rawBotUsername.trim().replace(/^@/, '');
     this.logger.debug(`[referral] BOT_USERNAME="${botUsername}"`);
 
     const referralLink = botUsername
       ? `https://t.me/${botUsername}?start=${user.telegramId.toString()}`
-      : "(BOT_USERNAME .env faylida o'rnatilmagan)";
+      : t.mainMenu.referralNoBotUsername;
     this.logger.debug(`[referral] link="${referralLink}"`);
 
     const totalReferralPoints = referralCount * REFERRAL_BONUS_PER_USER;
+    const m = t.mainMenu;
 
-    // HTML parse mode — Markdown v1 would treat underscores in the bot username
-    // as italic markers and silently strip them from the rendered URL.
+    // HTML parse mode: Markdown v1 treats underscores in bot usernames as italic.
     const text =
-      `👥 <b>Do'stlarni taklif qilish</b>\n\n` +
-      `🔗 Sizning havolangiz:\n${referralLink}\n\n` +
-      `👫 Taklif qilgan do'stlar: <b>${referralCount}</b>\n` +
-      `💰 Referral ballari: <b>${totalReferralPoints} ball</b>\n\n` +
-      `<i>Har bir ro'yxatdan o'tgan do'stingiz uchun +${REFERRAL_BONUS_PER_USER} ball!</i>`;
+      `👥 <b>${m.referralTitle}</b>\n\n` +
+      `${m.referralLinkLabel}\n${referralLink}\n\n` +
+      `${m.referralFriendsLabel(referralCount)}\n` +
+      `${m.referralPointsLabel(totalReferralPoints)}\n\n` +
+      m.referralBonusNote(REFERRAL_BONUS_PER_USER);
 
     await ctx.reply(text, { parse_mode: 'HTML' });
   }

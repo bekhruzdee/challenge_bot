@@ -1,3 +1,5 @@
+import { Language } from '@prisma/client';
+
 export class UpdateUserDto {
   telegramUsername?: string;
   firstName?: string;
@@ -8,5 +10,6 @@ export class UpdateUserDto {
   isActive?: boolean;
   registrationCompleted?: boolean;
   storyBonusGiven?: boolean;
+  language?: Language;
   lastActivityAt?: Date;
 }

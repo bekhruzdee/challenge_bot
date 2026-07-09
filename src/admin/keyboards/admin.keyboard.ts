@@ -1,32 +1,39 @@
 import { InlineKeyboard } from 'grammy';
-import { ADMIN_MENU } from '../admin.constants';
+import { Translations } from '../../i18n/types/translations.interface';
 
-export function adminMenuKeyboard(): InlineKeyboard {
+export function adminMenuKeyboard(t: Translations): InlineKeyboard {
+  const a = t.admin;
   return new InlineKeyboard()
-    .text(ADMIN_MENU.USERS, 'admin:users:1')
-    .text(ADMIN_MENU.STATS, 'admin:stats')
+    .text(a.usersBtn, 'admin:users:1')
+    .text(a.statsBtn, 'admin:stats')
     .row()
-    .text(ADMIN_MENU.LEADERBOARD, 'admin:leaderboard')
-    .text(ADMIN_MENU.STORIES, 'admin:stories');
+    .text(a.leaderboardBtn, 'admin:leaderboard')
+    .text(a.storiesBtn, 'admin:stories');
 }
 
 export function usersPageKeyboard(
   page: number,
   totalPages: number,
+  t: Translations,
 ): InlineKeyboard {
+  const a = t.admin;
   const kb = new InlineKeyboard();
-  if (page > 1) kb.text('◀️ Oldingi', `admin:users:${page - 1}`);
-  if (page < totalPages) kb.text('Keyingi ▶️', `admin:users:${page + 1}`);
-  kb.row().text('🔙 Orqaga', 'admin:menu');
+  if (page > 1) kb.text(a.prevBtn, `admin:users:${page - 1}`);
+  if (page < totalPages) kb.text(a.nextBtn, `admin:users:${page + 1}`);
+  kb.row().text(a.backBtn, 'admin:menu');
   return kb;
 }
 
-export function backKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text('🔙 Orqaga', 'admin:menu');
+export function backKeyboard(t: Translations): InlineKeyboard {
+  return new InlineKeyboard().text(t.admin.backBtn, 'admin:menu');
 }
 
-export function storyActionKeyboard(storyId: number): InlineKeyboard {
+export function storyActionKeyboard(
+  storyId: number,
+  t: Translations,
+): InlineKeyboard {
+  const a = t.admin;
   return new InlineKeyboard()
-    .text('✅ Tasdiqlash', `admin:approve:${storyId}`)
-    .text('❌ Rad etish', `admin:reject:${storyId}`);
+    .text(a.approveBtn, `admin:approve:${storyId}`)
+    .text(a.rejectBtn, `admin:reject:${storyId}`);
 }

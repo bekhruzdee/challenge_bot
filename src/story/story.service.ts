@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { StoryStatus, StorySubmission } from '@prisma/client';
+import { Language, StoryStatus, StorySubmission } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type StoryWithUser = StorySubmission & {
@@ -9,6 +9,7 @@ export type StoryWithUser = StorySubmission & {
 export interface StoryActionResult {
   alreadyProcessed: boolean;
   userTelegramId?: bigint;
+  userLanguage?: Language | null;
 }
 
 const STORY_BONUS_POINTS = 30;
@@ -57,7 +58,14 @@ export class StoryService {
       const submission = await tx.storySubmission.findUnique({
         where: { id },
         include: {
-          user: { select: { id: true, telegramId: true, storyBonusGiven: true } },
+          user: {
+            select: {
+              id: true,
+              telegramId: true,
+              storyBonusGiven: true,
+              language: true,
+            },
+          },
         },
       });
 
@@ -76,6 +84,7 @@ export class StoryService {
       return {
         alreadyProcessed: false,
         userTelegramId: submission?.user.telegramId,
+        userLanguage: submission?.user.language,
       };
     });
   }
@@ -91,12 +100,13 @@ export class StoryService {
 
       const submission = await tx.storySubmission.findUnique({
         where: { id },
-        include: { user: { select: { telegramId: true } } },
+        include: { user: { select: { telegramId: true, language: true } } },
       });
 
       return {
         alreadyProcessed: false,
         userTelegramId: submission?.user.telegramId,
+        userLanguage: submission?.user.language,
       };
     });
   }

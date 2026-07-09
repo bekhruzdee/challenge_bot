@@ -1,29 +1,39 @@
 import { InlineKeyboard, Keyboard } from 'grammy';
-import { REGIONS } from '../registration.constants';
+import { Translations } from '../../i18n/types/translations.interface';
 
-export function rulesKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text('▶️ Boshlash', 'reg:start');
-}
-
-export function notSubscribedKeyboard(channelLink: string): InlineKeyboard {
+export function languageKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .url("📢 Obuna bo'lish", channelLink)
-    .row()
-    .text('Tekshirish ✅', 'reg:check_sub');
+    .text("🇺🇿 O'zbekcha", 'lang:uz')
+    .text('🇷🇺 Русский', 'lang:ru');
 }
 
-export function contactKeyboard(): Keyboard {
+export function rulesKeyboard(t: Translations): InlineKeyboard {
+  return new InlineKeyboard().text(t.registration.startBtn, 'reg:start');
+}
+
+export function notSubscribedKeyboard(
+  t: Translations,
+  channelLink: string,
+): InlineKeyboard {
+  return new InlineKeyboard()
+    .url(t.registration.subscribeBtn, channelLink)
+    .row()
+    .text(t.registration.checkBtn, 'reg:check_sub');
+}
+
+export function contactKeyboard(t: Translations): Keyboard {
   return new Keyboard()
-    .requestContact('📱 Telefon raqamni yuborish')
+    .requestContact(t.registration.contactBtn)
     .resized(true)
     .oneTime(true);
 }
 
-export function regionKeyboard(): Keyboard {
+export function regionKeyboard(t: Translations): Keyboard {
+  const names = Object.values(t.registration.regions);
   const kb = new Keyboard().resized(true).oneTime(true);
-  for (let i = 0; i < REGIONS.length; i += 2) {
-    kb.text(REGIONS[i]);
-    if (REGIONS[i + 1]) kb.text(REGIONS[i + 1]);
+  for (let i = 0; i < names.length; i += 2) {
+    kb.text(names[i]);
+    if (names[i + 1]) kb.text(names[i + 1]);
     kb.row();
   }
   return kb;

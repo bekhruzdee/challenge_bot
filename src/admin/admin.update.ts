@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Bot, Composer, Context, GrammyError } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
-import { MAIN_MENU } from '../main-menu/main-menu.constants';
+import { I18nService } from '../i18n/i18n.service';
+import { Translations } from '../i18n/types/translations.interface';
+import { UsersService } from '../users/users.service';
 import { StoryService } from '../story/story.service';
 import { AdminService } from './admin.service';
 import { ADMIN_CB } from './admin.constants';
@@ -22,6 +24,8 @@ export class AdminUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly adminService: AdminService,
     private readonly storyService: StoryService,
+    private readonly usersService: UsersService,
+    private readonly i18n: I18nService,
   ) {}
 
   onModuleInit(): void {
@@ -37,11 +41,16 @@ export class AdminUpdate implements OnModuleInit {
     });
 
     composer.command('admin', (ctx) => this.onAdminCommand(ctx));
-    composer.hears(MAIN_MENU.ADMIN_PANEL, (ctx) => this.onAdminCommand(ctx));
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.adminPanelBtn),
+      (ctx) => this.onAdminCommand(ctx),
+    );
     composer.callbackQuery(ADMIN_CB.MENU, (ctx) => this.onMenu(ctx));
     composer.callbackQuery(ADMIN_CB.USERS, (ctx) => this.onUsers(ctx));
     composer.callbackQuery(ADMIN_CB.STATS, (ctx) => this.onStats(ctx));
-    composer.callbackQuery(ADMIN_CB.LEADERBOARD, (ctx) => this.onLeaderboard(ctx));
+    composer.callbackQuery(ADMIN_CB.LEADERBOARD, (ctx) =>
+      this.onLeaderboard(ctx),
+    );
     composer.callbackQuery(ADMIN_CB.STORIES, (ctx) => this.onStories(ctx));
     composer.callbackQuery(ADMIN_CB.APPROVE, (ctx) => this.onApprove(ctx));
     composer.callbackQuery(ADMIN_CB.REJECT, (ctx) => this.onReject(ctx));
@@ -55,12 +64,20 @@ export class AdminUpdate implements OnModuleInit {
     return id !== undefined && this.adminService.isAdmin(BigInt(id));
   }
 
+  private async getT(ctx: Context): Promise<Translations> {
+    const user = await this.usersService.findByTelegramId(
+      BigInt(ctx.from!.id),
+    );
+    return this.i18n.t(user?.language);
+  }
+
   // ─── /admin command ────────────────────────────────────────────────────────
 
   private async onAdminCommand(ctx: Context): Promise<void> {
-    await ctx.reply("👑 *Admin Panel*\n\nBo'limni tanlang:", {
+    const t = await this.getT(ctx);
+    await ctx.reply(t.admin.panelTitle, {
       parse_mode: 'Markdown',
-      reply_markup: adminMenuKeyboard(),
+      reply_markup: adminMenuKeyboard(t),
     });
   }
 
@@ -68,9 +85,10 @@ export class AdminUpdate implements OnModuleInit {
 
   private async onMenu(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
-    await this.safeEditText(ctx, "👑 *Admin Panel*\n\nBo'limni tanlang:", {
+    const t = await this.getT(ctx);
+    await this.safeEditText(ctx, t.admin.panelTitle, {
       parse_mode: 'Markdown',
-      reply_markup: adminMenuKeyboard(),
+      reply_markup: adminMenuKeyboard(t),
     });
   }
 
@@ -81,19 +99,23 @@ export class AdminUpdate implements OnModuleInit {
     const [, pageStr] = ctx.match as RegExpMatchArray;
     const page = Math.max(1, parseInt(pageStr, 10));
 
-    const { users, total, totalPages } = await this.adminService.getUsers(page);
+    const [{ users, total, totalPages }, t] = await Promise.all([
+      this.adminService.getUsers(page),
+      this.getT(ctx),
+    ]);
 
     const offset = (page - 1) * 10;
-    let text = `👥 *Foydalanuvchilar* — jami ${total} ta\n\n`;
+    const a = t.admin;
+    let text = a.usersHeader(total) + '\n\n';
     for (const [i, u] of users.entries()) {
       const name = u.firstName || u.telegramUsername || `#${u.id}`;
-      text += `${offset + i + 1}. ${name} — ${u.points.toLocaleString()} ball\n`;
+      text += a.usersEntryLine(offset + i + 1, name, u.points.toLocaleString()) + '\n';
     }
-    text += `\n📄 Sahifa ${page}/${Math.max(1, totalPages)}`;
+    text += a.usersPage(page, totalPages);
 
     await this.safeEditText(ctx, text, {
       parse_mode: 'Markdown',
-      reply_markup: usersPageKeyboard(page, totalPages),
+      reply_markup: usersPageKeyboard(page, totalPages, t),
     });
   }
 
@@ -101,20 +123,24 @@ export class AdminUpdate implements OnModuleInit {
 
   private async onStats(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
-    const stats = await this.adminService.getStats();
+    const [stats, t] = await Promise.all([
+      this.adminService.getStats(),
+      this.getT(ctx),
+    ]);
     const km = (stats.totalDistance / 1000).toFixed(2);
+    const a = t.admin;
 
     const text =
-      `📊 *Statistika*\n\n` +
-      `👥 Jami foydalanuvchilar: *${stats.totalUsers.toLocaleString()}*\n` +
-      `✅ Bugun faol: *${stats.activeToday.toLocaleString()}*\n` +
-      `📏 Umumiy masofa: *${km} km*\n` +
-      `🚶 Umumiy qadamlar: *${stats.totalSteps.toLocaleString()}*\n` +
-      `💰 Umumiy ball: *${stats.totalPoints.toLocaleString()}*`;
+      `${a.statsTitle}\n\n` +
+      `${a.statsTotalUsers(stats.totalUsers)}\n` +
+      `${a.statsActiveToday(stats.activeToday)}\n` +
+      `${a.statsTotalDist(km)}\n` +
+      `${a.statsTotalSteps(stats.totalSteps)}\n` +
+      a.statsTotalPoints(stats.totalPoints);
 
     await this.safeEditText(ctx, text, {
       parse_mode: 'Markdown',
-      reply_markup: backKeyboard(),
+      reply_markup: backKeyboard(t),
     });
   }
 
@@ -122,22 +148,26 @@ export class AdminUpdate implements OnModuleInit {
 
   private async onLeaderboard(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
-    const entries = await this.adminService.getLeaderboard(20);
+    const [entries, t] = await Promise.all([
+      this.adminService.getLeaderboard(20),
+      this.getT(ctx),
+    ]);
+    const a = t.admin;
 
-    let text = '🏆 *Reyting (TOP-20)*\n\n';
+    let text = `${a.leaderboardTitle}\n\n`;
     if (entries.length === 0) {
-      text += "Hali hech kim yo'q.";
+      text += a.leaderboardEmpty;
     } else {
       for (const [i, e] of entries.entries()) {
         const prefix = MEDALS[i] ?? `${i + 1}.`;
         const name = e.firstName || e.telegramUsername || `#${e.id}`;
-        text += `${prefix} ${name} — ${e.points.toLocaleString()} ball\n`;
+        text += a.leaderboardEntry(prefix, name, e.points.toLocaleString()) + '\n';
       }
     }
 
     await this.safeEditText(ctx, text, {
       parse_mode: 'Markdown',
-      reply_markup: backKeyboard(),
+      reply_markup: backKeyboard(t),
     });
   }
 
@@ -145,30 +175,34 @@ export class AdminUpdate implements OnModuleInit {
 
   private async onStories(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
-    const pending = await this.storyService.getPendingSubmissions();
+    const [pending, t] = await Promise.all([
+      this.storyService.getPendingSubmissions(),
+      this.getT(ctx),
+    ]);
+    const a = t.admin;
 
     if (pending.length === 0) {
       await this.safeEditText(
         ctx,
-        "📸 *Hikoya tasdiqlash*\n\nKo'rib chiqiladigan hikoya yo'q.",
-        { parse_mode: 'Markdown', reply_markup: backKeyboard() },
+        `${a.storiesTitle}\n\n${a.storiesEmpty}`,
+        { parse_mode: 'Markdown', reply_markup: backKeyboard(t) },
       );
       return;
     }
 
     await this.safeEditText(
       ctx,
-      `📸 *Hikoya tasdiqlash*\n\n${pending.length} ta hikoya kutmoqda:`,
-      { parse_mode: 'Markdown', reply_markup: backKeyboard() },
+      `${a.storiesTitle}\n\n${a.storiesPending(pending.length)}`,
+      { parse_mode: 'Markdown', reply_markup: backKeyboard(t) },
     );
 
     for (const s of pending) {
       const name = s.user.firstName || s.user.telegramUsername || `#${s.userId}`;
       const captionLine = s.caption ? `\n📝 ${s.caption}` : '';
       await ctx.replyWithPhoto(s.fileId, {
-        caption: `👤 *${name}*${captionLine}\n🆔 Hikoya #${s.id}`,
+        caption: a.storyCaption(name, captionLine, s.id),
         parse_mode: 'Markdown',
-        reply_markup: storyActionKeyboard(s.id),
+        reply_markup: storyActionKeyboard(s.id, t),
       });
     }
   }
@@ -176,48 +210,45 @@ export class AdminUpdate implements OnModuleInit {
   private async onApprove(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
     const [, idStr] = ctx.match as RegExpMatchArray;
-    const { alreadyProcessed, userTelegramId } =
-      await this.storyService.approveSubmission(parseInt(idStr, 10));
+    const [result, t] = await Promise.all([
+      this.storyService.approveSubmission(parseInt(idStr, 10)),
+      this.getT(ctx),
+    ]);
 
-    const caption = alreadyProcessed
-      ? "⚠️ Bu hikoya allaqachon ko'rib chiqilgan."
-      : '✅ Hikoya tasdiqlandi. Foydalanuvchiga +30 ball berildi.';
+    const caption = result.alreadyProcessed
+      ? t.admin.alreadyProcessed
+      : t.admin.approveSuccess;
 
     await this.safeEditCaption(ctx, caption);
 
-    if (!alreadyProcessed && userTelegramId) {
-      await this.notifyUser(
-        ctx,
-        userTelegramId,
-        "✅ *Hikoyangiz tasdiqlandi!*\n\nHisobingizga *+30 ball* qo'shildi.",
-      );
+    if (!result.alreadyProcessed && result.userTelegramId) {
+      const userT = this.i18n.t(result.userLanguage);
+      await this.notifyUser(ctx, result.userTelegramId, userT.admin.userApproved);
     }
   }
 
   private async onReject(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
     const [, idStr] = ctx.match as RegExpMatchArray;
-    const { alreadyProcessed, userTelegramId } =
-      await this.storyService.rejectSubmission(parseInt(idStr, 10));
+    const [result, t] = await Promise.all([
+      this.storyService.rejectSubmission(parseInt(idStr, 10)),
+      this.getT(ctx),
+    ]);
 
-    const caption = alreadyProcessed
-      ? "⚠️ Bu hikoya allaqachon ko'rib chiqilgan."
-      : '❌ Hikoya rad etildi.';
+    const caption = result.alreadyProcessed
+      ? t.admin.alreadyProcessed
+      : t.admin.rejectSuccess;
 
     await this.safeEditCaption(ctx, caption);
 
-    if (!alreadyProcessed && userTelegramId) {
-      await this.notifyUser(
-        ctx,
-        userTelegramId,
-        "❌ *Hikoyangiz rad etildi.*\n\nQayta urinib ko'rishingiz mumkin.",
-      );
+    if (!result.alreadyProcessed && result.userTelegramId) {
+      const userT = this.i18n.t(result.userLanguage);
+      await this.notifyUser(ctx, result.userTelegramId, userT.admin.userRejected);
     }
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  /** Swallows Telegram's "message is not modified" error; re-throws everything else. */
   private async safeEditText(
     ctx: Context,
     text: string,
@@ -245,8 +276,6 @@ export class AdminUpdate implements OnModuleInit {
     );
   }
 
-  /** Sends a notification to the user's private chat; logs and swallows failures
-   *  (e.g. user blocked the bot) so admin actions are never interrupted. */
   private async notifyUser(
     ctx: Context,
     telegramId: bigint,

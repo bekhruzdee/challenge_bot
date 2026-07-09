@@ -1,8 +1,2 @@
-export const MAIN_MENU = {
-  LOCATION: '📍 Lokatsiya yuborish',
-  BALANCE: '💰 Mening balansim',
-  RATING: '🏆 Reyting',
-  REFERRAL: "👥 Do'st taklif qilish",
-  STORY: '📸 Hikoya yuborish',
-  ADMIN_PANEL: '👑 Admin Panel',
-} as const;
+// Main menu button labels have moved to src/i18n/locales/*.ts (mainMenu.*Btn).
+// This file is intentionally left empty.

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { I18nModule } from './i18n/i18n.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { MainMenuModule } from './main-menu/main-menu.module';
 import { RegistrationModule } from './registration/registration.module';
@@ -14,6 +14,7 @@ import { AdminModule } from './admin/admin.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    I18nModule,
     PrismaModule,
     TelegramModule,
     UsersModule,
@@ -23,6 +24,5 @@ import { AdminModule } from './admin/admin.module';
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

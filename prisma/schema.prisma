@@ -6,6 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Language {
+  uz
+  ru
+}
+
 enum StoryStatus {
   PENDING
   APPROVED
@@ -33,6 +38,7 @@ model User {
   isActive              Boolean       @default(true)
   registrationCompleted Boolean       @default(false)
   storyBonusGiven       Boolean       @default(false)
+  language              Language?
   stories               StorySubmission[]
   referrerId            Int?
   referrer              User?         @relation("UserReferrals", fields: [referrerId], references: [id])

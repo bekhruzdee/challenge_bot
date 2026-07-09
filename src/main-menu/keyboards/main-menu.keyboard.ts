@@ -1,17 +1,20 @@
 import { Keyboard } from 'grammy';
-import { MAIN_MENU } from '../main-menu.constants';
+import { Translations } from '../../i18n/types/translations.interface';
 
-export function mainMenuKeyboard(isAdmin = false): Keyboard {
+export function mainMenuKeyboard(t: Translations, isAdmin = false): Keyboard {
+  const m = t.mainMenu;
   const kb = new Keyboard()
-    .text(MAIN_MENU.LOCATION)
+    .text(m.locationBtn)
     .row()
-    .text(MAIN_MENU.BALANCE)
-    .text(MAIN_MENU.RATING)
+    .text(m.balanceBtn)
+    .text(m.ratingBtn)
     .row()
-    .text(MAIN_MENU.REFERRAL)
-    .text(MAIN_MENU.STORY);
+    .text(m.referralBtn)
+    .text(m.storyBtn);
 
-  if (isAdmin) kb.row().text(MAIN_MENU.ADMIN_PANEL);
+  if (isAdmin) kb.row().text(m.adminPanelBtn);
+
+  kb.row().text(m.changeLangBtn);
 
   return kb.resized(true).persistent(true);
 }

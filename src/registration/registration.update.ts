@@ -1,18 +1,21 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RegistrationStep } from '@prisma/client';
+import { Language, RegistrationStep } from '@prisma/client';
 import { Bot, Composer, Context, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
+import { I18nService } from '../i18n/i18n.service';
 import { mainMenuKeyboard } from '../main-menu/keyboards/main-menu.keyboard';
 import { RegistrationData } from './interfaces/registration-data.interface';
 import {
   contactKeyboard,
+  languageKeyboard,
   notSubscribedKeyboard,
   regionKeyboard,
   rulesKeyboard,
 } from './keyboards/registration.keyboard';
-import { REGIONS, RULES_TEXT } from './registration.constants';
 import { RegistrationService } from './registration.service';
+
+const LANG_SELECT_PROMPT = 'Tilni tanlang / Выберите язык:';
 
 @Injectable()
 export class RegistrationUpdate implements OnModuleInit {
@@ -24,6 +27,7 @@ export class RegistrationUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly registrationService: RegistrationService,
     private readonly configService: ConfigService,
+    private readonly i18n: I18nService,
   ) {
     const raw = this.configService.get<string>('ADMIN_IDS', '');
     this.adminIds = new Set(
@@ -39,6 +43,11 @@ export class RegistrationUpdate implements OnModuleInit {
     const composer = new Composer<Context>();
 
     composer.command('start', (ctx) => this.onStart(ctx));
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.changeLangBtn),
+      (ctx) => this.onChangeLang(ctx),
+    );
+    composer.callbackQuery(/^lang:(uz|ru)$/, (ctx) => this.onLangSelect(ctx));
     composer.callbackQuery('reg:start', (ctx) => this.onStartButton(ctx));
     composer.callbackQuery('reg:check_sub', (ctx) =>
       this.onCheckSubscription(ctx),
@@ -56,7 +65,6 @@ export class RegistrationUpdate implements OnModuleInit {
   private async onStart(ctx: Context): Promise<void> {
     const from = ctx.from!;
 
-    // ctx.match holds the deep-link payload: "/start <payload>" → "<payload>"
     const payload = typeof ctx.match === 'string' ? ctx.match.trim() : '';
     const referrerId = await this.resolveReferrerId(payload, from.id);
 
@@ -68,27 +76,81 @@ export class RegistrationUpdate implements OnModuleInit {
       referrerId,
     );
 
-    if (user.registrationCompleted) {
-      await this.showMainMenu(ctx);
+    if (!user.language) {
+      await ctx.reply(LANG_SELECT_PROMPT, {
+        reply_markup: languageKeyboard(),
+      });
       return;
     }
 
+    if (user.registrationCompleted) {
+      await this.showMainMenu(ctx, user.language);
+      return;
+    }
+
+    const t = this.i18n.t(user.language);
     await this.registrationService.upsertSession(
       user.id,
       RegistrationStep.RULES,
       {},
     );
-    await ctx.reply(RULES_TEXT, {
+    await ctx.reply(t.registration.rules, {
       parse_mode: 'Markdown',
-      reply_markup: rulesKeyboard(),
+      reply_markup: rulesKeyboard(t),
     });
   }
 
-  /**
-   * Resolves a referral deep-link payload to an internal user id.
-   * The payload is the referrer's Telegram user id (e.g. "/start 123456789").
-   * Returns undefined for self-referrals, unknown users, or invalid payloads.
-   */
+  // ─── "Change language" button ────────────────────────────────────────────────
+
+  private async onChangeLang(ctx: Context): Promise<void> {
+    await ctx.reply(LANG_SELECT_PROMPT, { reply_markup: languageKeyboard() });
+  }
+
+  // ─── Language selection callback ──────────────────────────────────────────────
+
+  private async onLangSelect(ctx: Context): Promise<void> {
+    await ctx.answerCallbackQuery();
+
+    const langStr = (ctx.match as RegExpMatchArray)[1] as Language;
+
+    const user = await this.registrationService.getUserByTelegramId(
+      BigInt(ctx.from!.id),
+    );
+    if (!user) return;
+
+    await this.registrationService.setLanguage(user.id, langStr);
+
+    try {
+      await ctx.editMessageReplyMarkup();
+    } catch {
+      // Already removed or context mismatch — safe to ignore.
+    }
+
+    const t = this.i18n.t(langStr);
+
+    if (user.registrationCompleted) {
+      // Returning user changing language: confirm and redraw keyboard in new language.
+      const isAdmin = this.adminIds.has(BigInt(ctx.from!.id));
+      await ctx.reply(t.registration.langChanged, {
+        reply_markup: mainMenuKeyboard(t, isAdmin),
+      });
+      return;
+    }
+
+    // New user: continue into the registration flow in the chosen language.
+    await this.registrationService.upsertSession(
+      user.id,
+      RegistrationStep.RULES,
+      {},
+    );
+    await ctx.reply(t.registration.rules, {
+      parse_mode: 'Markdown',
+      reply_markup: rulesKeyboard(t),
+    });
+  }
+
+  // ─── Resolves referral deep-link ─────────────────────────────────────────────
+
   private async resolveReferrerId(
     payload: string,
     currentTelegramId: number,
@@ -103,7 +165,7 @@ export class RegistrationUpdate implements OnModuleInit {
     return referrer?.registrationCompleted ? referrer.id : undefined;
   }
 
-  // ─── Inline button: "Boshlash" ───────────────────────────────────────────────
+  // ─── Inline button: "Boshlash / Начать" ─────────────────────────────────────
 
   private async onStartButton(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
@@ -113,20 +175,20 @@ export class RegistrationUpdate implements OnModuleInit {
     );
     if (!user) return;
 
-    await this.handleSubscriptionCheck(ctx, user.id);
+    await this.handleSubscriptionCheck(ctx, user.id, user.language);
   }
 
-  // ─── Inline button: "Obuna bo'ldim" ─────────────────────────────────────────
+  // ─── Inline button: check subscription ──────────────────────────────────────
 
   private async onCheckSubscription(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery({ text: 'Tekshirilmoqda...' });
-
     const user = await this.registrationService.getUserByTelegramId(
       BigInt(ctx.from!.id),
     );
-    if (!user) return;
+    const t = this.i18n.t(user?.language);
+    await ctx.answerCallbackQuery({ text: t.registration.checkingAnswer });
 
-    await this.handleSubscriptionCheck(ctx, user.id);
+    if (!user) return;
+    await this.handleSubscriptionCheck(ctx, user.id, user.language);
   }
 
   // ─── Subscription gate ───────────────────────────────────────────────────────
@@ -134,23 +196,20 @@ export class RegistrationUpdate implements OnModuleInit {
   private async handleSubscriptionCheck(
     ctx: Context,
     userId: number,
+    lang: Language | null,
   ): Promise<void> {
+    const t = this.i18n.t(lang);
     const subscribed = await this.isSubscribed(ctx.from!.id);
 
     if (!subscribed) {
       const channelLink = this.resolveChannelLink();
-      const text =
-        "❌ Siz hali kanalga obuna bo'lmadingiz.\n\n" +
-        "Kanalga o'tib, obuna bo'ling va «Tekshirish ✅» tugmasini bosing.";
       try {
-        // Edit the message that triggered this callback so the chat stays clean.
-        await ctx.editMessageText(text, {
-          reply_markup: notSubscribedKeyboard(channelLink),
+        await ctx.editMessageText(t.registration.notSubscribed, {
+          reply_markup: notSubscribedKeyboard(t, channelLink),
         });
       } catch {
-        // Editing failed (message too old, context mismatch) — send a new one.
-        await ctx.reply(text, {
-          reply_markup: notSubscribedKeyboard(channelLink),
+        await ctx.reply(t.registration.notSubscribed, {
+          reply_markup: notSubscribedKeyboard(t, channelLink),
         });
       }
       await this.registrationService.upsertSession(
@@ -164,7 +223,7 @@ export class RegistrationUpdate implements OnModuleInit {
     try {
       await ctx.editMessageReplyMarkup();
     } catch {
-      // Message too old or already edited — safe to ignore.
+      // Already removed — safe to ignore.
     }
 
     await this.registrationService.upsertSession(
@@ -172,7 +231,7 @@ export class RegistrationUpdate implements OnModuleInit {
       RegistrationStep.ASK_FIRST_NAME,
       {},
     );
-    await ctx.reply('👤 Ismingizni kiriting:');
+    await ctx.reply(t.registration.askFirstName);
   }
 
   // ─── Text messages (FSM dispatch) ───────────────────────────────────────────
@@ -182,7 +241,6 @@ export class RegistrationUpdate implements OnModuleInit {
       BigInt(ctx.from!.id),
     );
 
-    // Registered users (or unknown users) fall through to MainMenuUpdate.
     if (!user || user.registrationCompleted) {
       return next();
     }
@@ -192,64 +250,56 @@ export class RegistrationUpdate implements OnModuleInit {
 
     const text = ctx.msg!.text!.trim();
     const saved = session.data as unknown as Partial<RegistrationData>;
+    const t = this.i18n.t(user.language);
 
     switch (session.step) {
       case RegistrationStep.RULES:
       case RegistrationStep.CHECKING_SUB:
-        // No free-text expected at these steps — silently ignore.
         break;
 
       case RegistrationStep.ASK_FIRST_NAME:
         await this.registrationService.upsertSession(
           user.id,
           RegistrationStep.ASK_LAST_NAME,
-          {
-            firstName: text,
-          },
+          { firstName: text },
         );
-        await ctx.reply('👤 Familiyangizni kiriting:');
+        await ctx.reply(t.registration.askLastName);
         break;
 
       case RegistrationStep.ASK_LAST_NAME:
         await this.registrationService.upsertSession(
           user.id,
           RegistrationStep.ASK_PHONE,
-          {
-            ...saved,
-            lastName: text,
-          },
+          { ...saved, lastName: text },
         );
-        await ctx.reply('📱 Telefon raqamingizni yuboring:', {
-          reply_markup: contactKeyboard(),
+        await ctx.reply(t.registration.askPhone, {
+          reply_markup: contactKeyboard(t),
         });
         break;
 
       case RegistrationStep.ASK_PHONE:
-        await ctx.reply(
-          '⚠️ Iltimos, «Telefon raqamni yuborish» tugmasini bosing.',
-          {
-            reply_markup: contactKeyboard(),
-          },
-        );
+        await ctx.reply(t.registration.wrongPhoneBtn, {
+          reply_markup: contactKeyboard(t),
+        });
         break;
 
-      case RegistrationStep.ASK_REGION:
-        if (!REGIONS.includes(text)) {
-          await ctx.reply(
-            '⚠️ Iltimos, quyidagi viloyatlardan birini tanlang:',
-            {
-              reply_markup: regionKeyboard(),
-            },
-          );
+      case RegistrationStep.ASK_REGION: {
+        const canonical = this.i18n.resolveRegion(text);
+        if (!canonical) {
+          await ctx.reply(t.registration.wrongRegion, {
+            reply_markup: regionKeyboard(t),
+          });
           return;
         }
         await this.finishRegistration(
           ctx,
           user.id,
           saved as RegistrationData,
-          text,
+          canonical,
+          user.language,
         );
         break;
+      }
     }
   }
 
@@ -264,10 +314,11 @@ export class RegistrationUpdate implements OnModuleInit {
     const session = await this.registrationService.getSession(user.id);
     if (!session || session.step !== RegistrationStep.ASK_PHONE) return;
 
+    const t = this.i18n.t(user.language);
     const contact = ctx.msg!.contact!;
     if (contact.user_id !== ctx.from!.id) {
-      await ctx.reply("⚠️ Iltimos, o'z telefon raqamingizni yuboring.", {
-        reply_markup: contactKeyboard(),
+      await ctx.reply(t.registration.wrongPhone, {
+        reply_markup: contactKeyboard(t),
       });
       return;
     }
@@ -276,13 +327,10 @@ export class RegistrationUpdate implements OnModuleInit {
     await this.registrationService.upsertSession(
       user.id,
       RegistrationStep.ASK_REGION,
-      {
-        ...saved,
-        phone: contact.phone_number,
-      },
+      { ...saved, phone: contact.phone_number },
     );
-    await ctx.reply('📍 Viloyatingizni tanlang:', {
-      reply_markup: regionKeyboard(),
+    await ctx.reply(t.registration.askRegion, {
+      reply_markup: regionKeyboard(t),
     });
   }
 
@@ -293,21 +341,23 @@ export class RegistrationUpdate implements OnModuleInit {
     userId: number,
     data: RegistrationData,
     region: string,
+    lang: Language | null,
   ): Promise<void> {
     await this.registrationService.completeRegistration(userId, data, region);
-    await this.showMainMenu(ctx);
+    await this.showMainMenu(ctx, lang);
   }
 
   // ─── Main menu ───────────────────────────────────────────────────────────────
 
-  private async showMainMenu(ctx: Context): Promise<void> {
+  private async showMainMenu(
+    ctx: Context,
+    lang: Language | null,
+  ): Promise<void> {
     const isAdmin = this.adminIds.has(BigInt(ctx.from!.id));
-    await ctx.reply(
-      "🎉 Ro'yxatdan muvaffaqiyatli o'tdingiz!\n\n📋 Asosiy menyu:",
-      {
-        reply_markup: mainMenuKeyboard(isAdmin),
-      },
-    );
+    const t = this.i18n.t(lang);
+    await ctx.reply(t.registration.success, {
+      reply_markup: mainMenuKeyboard(t, isAdmin),
+    });
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -339,19 +389,12 @@ export class RegistrationUpdate implements OnModuleInit {
     }
   }
 
-  /**
-   * Normalises the raw CHANNEL_ID env value into the form the Bot API accepts:
-   *   "@username"      → pass through          (public channel)
-   *   "-1001234567890" → pass through          (private channel/supergroup, already correct)
-   *   "1001234567890"  → negated → -1001234567890  (positive ID, user forgot the minus)
-   *   "channelname"    → "@channelname"        (bare username, no @ prefix)
-   */
   private normaliseChannelId(raw: string): string | number {
-    if (raw.startsWith('@')) return raw; // already @username
-    if (raw.startsWith('-')) return raw; // already a negative numeric ID
+    if (raw.startsWith('@')) return raw;
+    if (raw.startsWith('-')) return raw;
     const n = parseInt(raw, 10);
-    if (!isNaN(n)) return -n; // positive number → make it negative
-    return `@${raw}`; // bare word → treat as username
+    if (!isNaN(n)) return -n;
+    return `@${raw}`;
   }
 
   private resolveChannelLink(): string {

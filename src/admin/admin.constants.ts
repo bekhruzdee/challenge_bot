@@ -1,9 +1,4 @@
-export const ADMIN_MENU = {
-  USERS: '👥 Foydalanuvchilar',
-  STATS: '📊 Statistika',
-  LEADERBOARD: '🏆 Reyting',
-  STORIES: '📸 Hikoya tasdiqlash',
-} as const;
+// Admin menu button labels have moved to src/i18n/locales/*.ts (admin.*Btn).
 
 export const ADMIN_CB = {
   MENU: 'admin:menu',
