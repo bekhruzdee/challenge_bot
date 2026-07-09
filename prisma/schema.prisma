@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum StoryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum RegistrationStep {
   RULES
   CHECKING_SUB
@@ -27,6 +33,7 @@ model User {
   isActive              Boolean       @default(true)
   registrationCompleted Boolean       @default(false)
   storyBonusGiven       Boolean       @default(false)
+  stories               StorySubmission[]
   referrerId            Int?
   referrer              User?         @relation("UserReferrals", fields: [referrerId], references: [id])
   referrals             User[]        @relation("UserReferrals")
@@ -62,6 +69,20 @@ model Location {
 
   @@index([userId, recordedAt(sort: Desc)])
   @@map("locations")
+}
+
+model StorySubmission {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileId    String
+  caption   String?
+  status    StoryStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@map("story_submissions")
 }
 
 model Progress {

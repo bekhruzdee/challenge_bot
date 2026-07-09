@@ -18,11 +18,22 @@ import { RegistrationService } from './registration.service';
 export class RegistrationUpdate implements OnModuleInit {
   private readonly logger = new Logger(RegistrationUpdate.name);
 
+  private readonly adminIds: Set<bigint>;
+
   constructor(
     @Inject(BOT) private readonly bot: Bot,
     private readonly registrationService: RegistrationService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    const raw = this.configService.get<string>('ADMIN_IDS', '');
+    this.adminIds = new Set(
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map(BigInt),
+    );
+  }
 
   onModuleInit(): void {
     const composer = new Composer<Context>();
@@ -290,10 +301,11 @@ export class RegistrationUpdate implements OnModuleInit {
   // ─── Main menu ───────────────────────────────────────────────────────────────
 
   private async showMainMenu(ctx: Context): Promise<void> {
+    const isAdmin = this.adminIds.has(BigInt(ctx.from!.id));
     await ctx.reply(
       "🎉 Ro'yxatdan muvaffaqiyatli o'tdingiz!\n\n📋 Asosiy menyu:",
       {
-        reply_markup: mainMenuKeyboard(),
+        reply_markup: mainMenuKeyboard(isAdmin),
       },
     );
   }
