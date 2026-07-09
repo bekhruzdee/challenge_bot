@@ -53,9 +53,7 @@ export class MainMenuUpdate implements OnModuleInit {
   // ─── Location button ─────────────────────────────────────────────────────────
 
   private async onLocationButton(ctx: Context): Promise<void> {
-    const user = await this.usersService.findByTelegramId(
-      BigInt(ctx.from!.id),
-    );
+    const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
     await ctx.reply(t.mainMenu.locationInstruction, {
       parse_mode: 'Markdown',
@@ -102,9 +100,11 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    await ctx.reply(this.buildLocationReply(result, t), {
-      parse_mode: 'Markdown',
-    });
+    if (result.shouldNotify) {
+      await ctx.reply(this.buildLocationReply(result, t), {
+        parse_mode: 'Markdown',
+      });
+    }
   }
 
   private buildLocationReply(r: LocationResult, t: Translations): string {

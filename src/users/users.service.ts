@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { type Prisma, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -39,8 +39,12 @@ export class UsersService {
     return hit !== null;
   }
 
-  addPoints(id: number, amount: number): Promise<User> {
-    return this.prisma.user.update({
+  addPoints(
+    id: number,
+    amount: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<User> {
+    return (tx ?? this.prisma).user.update({
       where: { id },
       data: { points: { increment: amount } },
     });

@@ -92,14 +92,15 @@ model StorySubmission {
 }
 
 model Progress {
-  id            Int      @id @default(autoincrement())
-  userId        Int
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date          DateTime @db.Date
-  totalMeters   Float    @default(0)
-  totalSteps    Int      @default(0)
-  goalReached   Boolean  @default(false)
-  pointsAwarded Boolean  @default(false)
+  id                     Int       @id @default(autoincrement())
+  userId                 Int
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date                   DateTime  @db.Date
+  totalMeters            Float     @default(0)
+  totalSteps             Int       @default(0)
+  goalReached            Boolean   @default(false)
+  pointsAwarded          Boolean   @default(false)
+  lastProgressNotifiedAt DateTime?
 
   @@unique([userId, date])
   @@index([userId])
