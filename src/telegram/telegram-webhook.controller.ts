@@ -8,6 +8,8 @@ export class TelegramWebhookController {
 
   @Post('webhook')
   async handleUpdate(@Req() req: Request, @Res() res: Response): Promise<void> {
+    console.log('[webhook] Content-Type:', req.headers['content-type']);
+    console.log('[webhook] Body:', JSON.stringify(req.body, null, 2));
     // @Res() disables NestJS's automatic response — grammy sends it directly.
     await this.telegramService.getWebhookCallback()(req, res, () => {});
   }
