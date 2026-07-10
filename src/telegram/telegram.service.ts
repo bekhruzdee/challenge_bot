@@ -17,11 +17,49 @@ export class TelegramService
   private readonly mode: 'polling' | 'webhook';
   private readonly webhookCb: RequestHandler;
 
+  // constructor(private readonly configService: ConfigService) {
+  //   const token = this.configService.get<string>('BOT_TOKEN');
+  //   if (!token) throw new Error('BOT_TOKEN is not defined');
+
+  //   this.bot = new Bot(token);
+  //   this.mode =
+  //     this.configService.get<string>('BOT_MODE') === 'webhook'
+  //       ? 'webhook'
+  //       : 'polling';
+
+  //   const secret = this.configService.get<string>('WEBHOOK_SECRET_TOKEN');
+  //   this.webhookCb = webhookCallback(this.bot, 'express', {
+  //     secretToken: secret || undefined,
+  //   }) as RequestHandler;
+
+  //   this.bot.catch((err) => {
+  //     const e = err.error;
+  //     if (e instanceof GrammyError) {
+  //       this.logger.error(`Telegram API error: ${e.description}`);
+  //     } else if (e instanceof HttpError) {
+  //       this.logger.error(`HTTP error: ${e.message}`);
+  //     } else {
+  //       this.logger.error(
+  //         'Unhandled bot error',
+  //         e instanceof Error ? e.stack : String(e),
+  //       );
+  //     }
+  //   });
+  // }
+
   constructor(private readonly configService: ConfigService) {
     const token = this.configService.get<string>('BOT_TOKEN');
     if (!token) throw new Error('BOT_TOKEN is not defined');
 
     this.bot = new Bot(token);
+
+    // 👇 Temporary debug middleware
+    this.bot.use(async (ctx, next) => {
+      console.log('[grammy] update received:', ctx.update.update_id);
+      await next();
+      console.log('[grammy] update finished:', ctx.update.update_id);
+    });
+
     this.mode =
       this.configService.get<string>('BOT_MODE') === 'webhook'
         ? 'webhook'
