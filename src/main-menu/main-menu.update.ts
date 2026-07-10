@@ -26,26 +26,63 @@ export class MainMenuUpdate implements OnModuleInit {
   onModuleInit(): void {
     const composer = new Composer<Context>();
 
-    composer.on(['message:location', 'edited_message:location'], (ctx) =>
-      this.onLocation(ctx),
+    // composer.on(['message:location', 'edited_message:location'], (ctx) =>
+    //   this.onLocation(ctx),
+    // );
+    composer.on(
+      ['message:location', 'edited_message:location'],
+      async (ctx) => {
+        console.log('[MainMenu] location handler matched');
+        await this.onLocation(ctx);
+      },
     );
-    composer.hears(
-      this.i18n.allVariants((t) => t.mainMenu.locationBtn),
-      (ctx) => this.onLocationButton(ctx),
-    );
+    // composer.hears(
+    //   this.i18n.allVariants((t) => t.mainMenu.locationBtn),
+    //   (ctx) => this.onLocationButton(ctx),
+    // );
+    // composer.hears(
+    //   this.i18n.allVariants((t) => t.mainMenu.balanceBtn),
+    //   (ctx) => this.onBalance(ctx),
+    // );
+    // composer.hears(
+    //   this.i18n.allVariants((t) => t.mainMenu.ratingBtn),
+    //   (ctx) => this.onRating(ctx),
+    // );
+    // composer.hears(
+    //   this.i18n.allVariants((t) => t.mainMenu.referralBtn),
+    //   (ctx) => this.onReferral(ctx),
+    // );
+
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.balanceBtn),
-      (ctx) => this.onBalance(ctx),
+      async (ctx) => {
+        console.log('[MainMenu] balance matched:', ctx.message?.text);
+        await this.onBalance(ctx);
+      },
     );
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.ratingBtn),
-      (ctx) => this.onRating(ctx),
+      async (ctx) => {
+        console.log('[MainMenu] rating matched:', ctx.message?.text);
+        await this.onRating(ctx);
+      },
     );
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.referralBtn),
-      (ctx) => this.onReferral(ctx),
+      async (ctx) => {
+        console.log('[MainMenu] referral matched:', ctx.message?.text);
+        await this.onReferral(ctx);
+      },
+    );
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.locationBtn),
+      async (ctx) => {
+        console.log('[MainMenu] location button matched:', ctx.message?.text);
+        await this.onLocationButton(ctx);
+      },
     );
 
+    console.log('[MainMenuUpdate] registering handlers');
     this.bot.use(composer);
     this.logger.log('Main menu handlers registered');
   }
