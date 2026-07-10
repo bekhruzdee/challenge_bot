@@ -28,4 +28,4 @@ COPY prisma.config.ts ./
 EXPOSE 3000
 
 # Run pending migrations then start the bot
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/src/main"]
