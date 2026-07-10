@@ -8,30 +8,39 @@ import type { IncomingMessage, ServerResponse } from 'http';
 
 const server = express();
 
-// Cached across warm Lambda invocations; null on cold start.
 let bootstrapPromise: Promise<void> | null = null;
+// Populated during ensureBootstrapped(); referenced by the route below.
+let webhookHandler: express.RequestHandler | null = null;
+const webhookPath = process.env.WEBHOOK_PATH ?? '/webhook';
+
+// Must be registered at module load time, BEFORE NestJS bootstraps.
+// NestJS adds a catch-all 404 handler to Express at the end of app.init().
+// Express processes middleware in registration order, so anything registered
+// here sits ahead of that catch-all and will be matched first.
+server.use(express.json()); // body must be parsed before grammy's handler runs
+
+server.post(webhookPath, (req, res, next) => {
+  // webhookHandler is null only if a request arrives before ensureBootstrapped()
+  // completes — the await in the exported handler prevents that in practice.
+  if (webhookHandler) return webhookHandler(req, res, next);
+  next();
+});
 
 function ensureBootstrapped(): Promise<void> {
-  // JavaScript is single-threaded: assignment is atomic, so this is safe even
-  // if two requests arrive simultaneously during a cold start.
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
       const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
         logger: ['log', 'warn', 'error'],
+        // Disable NestJS's auto body-parser: we already called server.use(express.json())
+        // above so the stream is pre-consumed before NestJS's routes run.
+        bodyParser: false,
       });
 
-      // enableShutdownHooks() is intentionally omitted: on Vercel/Lambda a
-      // SIGTERM would trigger onModuleDestroy() in TelegramService, which calls
-      // bot.api.deleteWebhook() and removes the Telegram webhook registration.
-      // Without shutdown hooks the process just dies cleanly; the webhook stays.
+      // enableShutdownHooks() intentionally omitted: SIGTERM would call
+      // onModuleDestroy() → bot.api.deleteWebhook(), removing the Telegram webhook.
 
-      await app.init(); // triggers onApplicationBootstrap → bot.api.setWebhook()
-
-      // Register grammy's webhook handler after NestJS has set up its own
-      // middleware, so both can coexist on the same Express instance.
-      const telegramService = app.get(TelegramService);
-      const webhookPath = process.env.WEBHOOK_PATH ?? '/webhook';
-      server.post(webhookPath, telegramService.getWebhookCallback());
+      await app.init(); // NestJS's 404 catch-all is added here, AFTER our route above.
+      webhookHandler = app.get(TelegramService).getWebhookCallback();
     })();
   }
   return bootstrapPromise;

@@ -63,15 +63,20 @@ export class TelegramService
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    // --- DIAGNOSTIC: remove after confirming webhook registers correctly ---
+    this.logger.warn(`[diag] onApplicationBootstrap mode=${this.mode}`);
+    // --- END DIAGNOSTIC ---
     if (this.mode === 'webhook') {
       const domain = this.configService.getOrThrow<string>('WEBHOOK_DOMAIN');
       const path = this.configService.get<string>('WEBHOOK_PATH') ?? '/webhook';
       const secret = this.configService.get<string>('WEBHOOK_SECRET_TOKEN');
-      await this.bot.api.setWebhook(`${domain}${path}`, {
+      const webhookUrl = `${domain}${path}`;
+      this.logger.warn(`[diag] calling setWebhook(${webhookUrl})`);
+      await this.bot.api.setWebhook(webhookUrl, {
         secret_token: secret || undefined,
         drop_pending_updates: true,
       });
-      this.logger.log(`Bot started in webhook mode: ${domain}${path}`);
+      this.logger.log(`Bot started in webhook mode: ${webhookUrl}`);
     } else {
       void this.bot.start({
         drop_pending_updates: true,
