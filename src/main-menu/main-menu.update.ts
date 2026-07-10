@@ -24,6 +24,21 @@ export class MainMenuUpdate implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
+    console.log(
+      'Balance variants:',
+      this.i18n.allVariants((t) => t.mainMenu.balanceBtn),
+    );
+
+    console.log(
+      'Rating variants:',
+      this.i18n.allVariants((t) => t.mainMenu.ratingBtn),
+    );
+
+    console.log(
+      'Referral variants:',
+      this.i18n.allVariants((t) => t.mainMenu.referralBtn),
+    );
+
     const composer = new Composer<Context>();
 
     // composer.on(['message:location', 'edited_message:location'], (ctx) =>
@@ -80,6 +95,30 @@ export class MainMenuUpdate implements OnModuleInit {
         console.log('[MainMenu] location button matched:', ctx.message?.text);
         await this.onLocationButton(ctx);
       },
+    );
+
+    composer.on(['message:location', 'edited_message:location'], (ctx) =>
+      this.onLocation(ctx),
+    );
+
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.locationBtn),
+      (ctx) => this.onLocationButton(ctx),
+    );
+
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.balanceBtn),
+      (ctx) => this.onBalance(ctx),
+    );
+
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.ratingBtn),
+      (ctx) => this.onRating(ctx),
+    );
+
+    composer.hears(
+      this.i18n.allVariants((t) => t.mainMenu.referralBtn),
+      (ctx) => this.onReferral(ctx),
     );
 
     console.log('[MainMenuUpdate] registering handlers');
