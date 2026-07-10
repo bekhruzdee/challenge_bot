@@ -65,9 +65,7 @@ export class AdminUpdate implements OnModuleInit {
   }
 
   private async getT(ctx: Context): Promise<Translations> {
-    const user = await this.usersService.findByTelegramId(
-      BigInt(ctx.from!.id),
-    );
+    const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     return this.i18n.t(user?.language);
   }
 
@@ -109,7 +107,9 @@ export class AdminUpdate implements OnModuleInit {
     let text = a.usersHeader(total) + '\n\n';
     for (const [i, u] of users.entries()) {
       const name = u.firstName || u.telegramUsername || `#${u.id}`;
-      text += a.usersEntryLine(offset + i + 1, name, u.points.toLocaleString()) + '\n';
+      text +=
+        a.usersEntryLine(offset + i + 1, name, u.points.toLocaleString()) +
+        '\n';
     }
     text += a.usersPage(page, totalPages);
 
@@ -161,7 +161,8 @@ export class AdminUpdate implements OnModuleInit {
       for (const [i, e] of entries.entries()) {
         const prefix = MEDALS[i] ?? `${i + 1}.`;
         const name = e.firstName || e.telegramUsername || `#${e.id}`;
-        text += a.leaderboardEntry(prefix, name, e.points.toLocaleString()) + '\n';
+        text +=
+          a.leaderboardEntry(prefix, name, e.points.toLocaleString()) + '\n';
       }
     }
 
@@ -182,11 +183,10 @@ export class AdminUpdate implements OnModuleInit {
     const a = t.admin;
 
     if (pending.length === 0) {
-      await this.safeEditText(
-        ctx,
-        `${a.storiesTitle}\n\n${a.storiesEmpty}`,
-        { parse_mode: 'Markdown', reply_markup: backKeyboard(t) },
-      );
+      await this.safeEditText(ctx, `${a.storiesTitle}\n\n${a.storiesEmpty}`, {
+        parse_mode: 'Markdown',
+        reply_markup: backKeyboard(t),
+      });
       return;
     }
 
@@ -197,7 +197,8 @@ export class AdminUpdate implements OnModuleInit {
     );
 
     for (const s of pending) {
-      const name = s.user.firstName || s.user.telegramUsername || `#${s.userId}`;
+      const name =
+        s.user.firstName || s.user.telegramUsername || `#${s.userId}`;
       const captionLine = s.caption ? `\n📝 ${s.caption}` : '';
       await ctx.replyWithPhoto(s.fileId, {
         caption: a.storyCaption(name, captionLine, s.id),
@@ -223,7 +224,11 @@ export class AdminUpdate implements OnModuleInit {
 
     if (!result.alreadyProcessed && result.userTelegramId) {
       const userT = this.i18n.t(result.userLanguage);
-      await this.notifyUser(ctx, result.userTelegramId, userT.admin.userApproved);
+      await this.notifyUser(
+        ctx,
+        result.userTelegramId,
+        userT.admin.userApproved,
+      );
     }
   }
 
@@ -243,7 +248,11 @@ export class AdminUpdate implements OnModuleInit {
 
     if (!result.alreadyProcessed && result.userTelegramId) {
       const userT = this.i18n.t(result.userLanguage);
-      await this.notifyUser(ctx, result.userTelegramId, userT.admin.userRejected);
+      await this.notifyUser(
+        ctx,
+        result.userTelegramId,
+        userT.admin.userRejected,
+      );
     }
   }
 
