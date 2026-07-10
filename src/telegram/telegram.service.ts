@@ -8,15 +8,36 @@ import { ConfigService } from '@nestjs/config';
 import { Bot, GrammyError, HttpError, webhookCallback } from 'grammy';
 
 @Injectable()
-export class TelegramService implements OnApplicationBootstrap, OnModuleDestroy {
+export class TelegramService
+  implements OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(TelegramService.name);
   private readonly bot: Bot;
   private readonly mode: 'polling' | 'webhook';
 
   constructor(private readonly configService: ConfigService) {
+    // --- DIAGNOSTIC: remove after confirming env vars load correctly ---
+    this.logger.warn(`[diag] NODE_ENV=${process.env.NODE_ENV ?? 'undefined'}`);
+    this.logger.warn(`[diag] VERCEL=${process.env.VERCEL ?? 'undefined'}`);
+    this.logger.warn(
+      `[diag] BOT_TOKEN in process.env=${process.env.BOT_TOKEN ? 'SET' : 'UNSET/EMPTY'}`,
+    );
+    this.logger.warn(
+      `[diag] BOT_TOKEN via ConfigService=${this.configService.get('BOT_TOKEN') ? 'SET' : 'UNSET/EMPTY'}`,
+    );
+    this.logger.warn(
+      `[diag] DATABASE_URL via ConfigService=${this.configService.get('DATABASE_URL') ? 'SET' : 'UNSET/EMPTY'}`,
+    );
+    // --- END DIAGNOSTIC ---
+
     const token = this.configService.get<string>('BOT_TOKEN');
-    if (!token) throw new Error('BOT_TOKEN is not defined');
+
+    if (!token) {
+      throw new Error('BOT_TOKEN is not defined');
+    }
+
     this.bot = new Bot(token);
+
     this.mode =
       this.configService.get<string>('BOT_MODE') === 'webhook'
         ? 'webhook'
@@ -25,10 +46,13 @@ export class TelegramService implements OnApplicationBootstrap, OnModuleDestroy 
     // Global per-update error handler — prevents unhandled rejections.
     this.bot.catch((err) => {
       const e = err.error;
+
       if (e instanceof GrammyError) {
         this.logger.error(`Telegram API error: ${e.description}`);
       } else if (e instanceof HttpError) {
-        this.logger.error(`HTTP error communicating with Telegram: ${e.message}`);
+        this.logger.error(
+          `HTTP error communicating with Telegram: ${e.message}`,
+        );
       } else {
         this.logger.error(
           'Unhandled bot error',

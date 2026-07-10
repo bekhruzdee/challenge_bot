@@ -13,7 +13,11 @@ import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
+    }),
     I18nModule,
     PrismaModule,
     TelegramModule,
