@@ -8,7 +8,13 @@ import { AdminService } from './admin.service';
 import { AdminUpdate } from './admin.update';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, TelegramModule, UsersModule, StoryModule],
+  imports: [
+    ConfigModule,
+    PrismaModule,
+    TelegramModule,
+    UsersModule,
+    StoryModule,
+  ],
   providers: [AdminService, AdminUpdate],
   exports: [AdminService],
 })

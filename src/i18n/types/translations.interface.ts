@@ -59,8 +59,7 @@ export interface Translations {
     progressStatusInProgress: string;
     progressGoalJustReached: (stats: string) => string;
     progressAlreadyDone: (stats: string) => string;
-    progressUpdated: (delta: string, stats: string) => string;
-    progressDelta: (steps: number) => string;
+    progressUpdated: (stats: string) => string;
     balanceTitle: string;
     balanceTotalPoints: (pts: string) => string;
     balanceRankLabel: (rank: number) => string;

@@ -23,7 +23,10 @@ async function bootstrap() {
     const telegramService = app.get(TelegramService);
     const path = process.env.WEBHOOK_PATH ?? '/webhook';
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    app.getHttpAdapter().getInstance().post(path, telegramService.getWebhookCallback());
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .post(path, telegramService.getWebhookCallback());
     logger.log(`Webhook route registered at ${path}`);
   }
 

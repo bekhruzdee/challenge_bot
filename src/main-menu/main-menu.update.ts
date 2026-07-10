@@ -128,8 +128,7 @@ export class MainMenuUpdate implements OnModuleInit {
     if (r.alreadyReachedGoal) {
       return m.progressAlreadyDone(stats);
     }
-    const delta = r.addedSteps > 0 ? m.progressDelta(r.addedSteps) : '';
-    return m.progressUpdated(delta, stats);
+    return m.progressUpdated(stats);
   }
 
   // ─── Balance ─────────────────────────────────────────────────────────────────

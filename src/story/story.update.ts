@@ -30,9 +30,7 @@ export class StoryUpdate implements OnModuleInit {
   }
 
   private async onStoryButton(ctx: Context): Promise<void> {
-    const user = await this.usersService.findByTelegramId(
-      BigInt(ctx.from!.id),
-    );
+    const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
     await ctx.reply(t.story.prompt, { parse_mode: 'Markdown' });
   }

@@ -14,7 +14,12 @@ export interface AdminStats {
 }
 
 export interface UsersPage {
-  users: { id: number; firstName: string | null; telegramUsername: string | null; points: number }[];
+  users: {
+    id: number;
+    firstName: string | null;
+    telegramUsername: string | null;
+    points: number;
+  }[];
   total: number;
   page: number;
   totalPages: number;
@@ -65,25 +70,32 @@ export class AdminService {
       this.countUsers(),
     ]);
 
-    return { users, total, page, totalPages: Math.ceil(total / USERS_PER_PAGE) };
+    return {
+      users,
+      total,
+      page,
+      totalPages: Math.ceil(total / USERS_PER_PAGE),
+    };
   }
 
   async getStats(): Promise<AdminStats> {
     const today = this.todayUtc();
 
-    const [totalUsers, activeToday, distanceAgg, pointsAgg] = await Promise.all([
-      this.prisma.user.count({ where: { registrationCompleted: true } }),
-      this.prisma.progress.count({
-        where: { date: today, totalSteps: { gt: 0 } },
-      }),
-      this.prisma.progress.aggregate({
-        _sum: { totalMeters: true, totalSteps: true },
-      }),
-      this.prisma.user.aggregate({
-        _sum: { points: true },
-        where: { registrationCompleted: true },
-      }),
-    ]);
+    const [totalUsers, activeToday, distanceAgg, pointsAgg] = await Promise.all(
+      [
+        this.prisma.user.count({ where: { registrationCompleted: true } }),
+        this.prisma.progress.count({
+          where: { date: today, totalSteps: { gt: 0 } },
+        }),
+        this.prisma.progress.aggregate({
+          _sum: { totalMeters: true, totalSteps: true },
+        }),
+        this.prisma.user.aggregate({
+          _sum: { points: true },
+          where: { registrationCompleted: true },
+        }),
+      ],
+    );
 
     return {
       totalUsers,
@@ -100,6 +112,8 @@ export class AdminService {
 
   private todayUtc(): Date {
     const n = new Date();
-    return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
+    return new Date(
+      Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()),
+    );
   }
 }

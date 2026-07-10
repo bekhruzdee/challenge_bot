@@ -25,8 +25,7 @@ export const ru = {
     askFirstName: '👤 Введите ваше имя:',
     askLastName: '👤 Введите вашу фамилию:',
     askPhone: '📱 Отправьте ваш номер телефона:',
-    wrongPhoneBtn:
-      '⚠️ Пожалуйста, нажмите кнопку «Отправить номер телефона».',
+    wrongPhoneBtn: '⚠️ Пожалуйста, нажмите кнопку «Отправить номер телефона».',
     wrongPhone: '⚠️ Пожалуйста, отправьте свой собственный номер телефона.',
     askRegion: '📍 Выберите ваш регион:',
     wrongRegion: '⚠️ Пожалуйста, выберите один из предложенных регионов:',
@@ -57,7 +56,7 @@ export const ru = {
     referralBtn: '👥 Пригласить друга',
     storyBtn: '📸 Отправить историю',
     adminPanelBtn: '👑 Admin Panel',
-    changeLangBtn: '🌐 Tilni o\'zgartirish / Изменить язык',
+    changeLangBtn: "🌐 Tilni o'zgartirish / Изменить язык",
     userNotFound: '⚠️ Пользователь не найден. Нажмите /start.',
     locationInstruction:
       '📍 *Поделитесь живой локацией*\n\n' +
@@ -84,10 +83,7 @@ export const ru = {
       `🎉 *Поздравляем! Ежедневная цель выполнена!*\n\n${stats}\n\n🏆 *+100 очков получено!*`,
     progressAlreadyDone: (stats: string) =>
       `✅ *Цель уже выполнена!*\n\n${stats}`,
-    progressUpdated: (delta: string, stats: string) =>
-      `📍 *Локация обновлена*${delta}\n\n${stats}`,
-    progressDelta: (steps: number) =>
-      ` *(+${steps.toLocaleString()} шагов)*`,
+    progressUpdated: (stats: string) => `📍 *Локация обновлена*\n\n${stats}`,
     balanceTitle: '💰 *Мой баланс*',
     balanceTotalPoints: (pts: string) => `🏅 Всего очков: *${pts}*`,
     balanceRankLabel: (rank: number) => `🏆 Рейтинг: *#${rank}*`,
@@ -104,8 +100,7 @@ export const ru = {
       `📊 *Ваше место:* #${rank} — ${pts} очков`,
     referralTitle: '👥 Пригласить друзей',
     referralLinkLabel: '🔗 Ваша ссылка:',
-    referralFriendsLabel: (n: number) =>
-      `👫 Приглашённые друзья: <b>${n}</b>`,
+    referralFriendsLabel: (n: number) => `👫 Приглашённые друзья: <b>${n}</b>`,
     referralPointsLabel: (pts: number) =>
       `💰 Реферальные очки: <b>${pts} очков</b>`,
     referralBonusNote: (perUser: number) =>
@@ -150,8 +145,7 @@ export const ru = {
       `✅ Активны сегодня: *${n.toLocaleString()}*`,
     statsTotalDist: (km: string) => `📏 Общее расстояние: *${km} км*`,
     statsTotalSteps: (n: number) => `🚶 Всего шагов: *${n.toLocaleString()}*`,
-    statsTotalPoints: (n: number) =>
-      `💰 Всего очков: *${n.toLocaleString()}*`,
+    statsTotalPoints: (n: number) => `💰 Всего очков: *${n.toLocaleString()}*`,
     leaderboardTitle: '🏆 *Рейтинг (ТОП-20)*',
     leaderboardEmpty: 'Пока никого нет.',
     leaderboardEntry: (prefix: string, name: string, pts: string) =>

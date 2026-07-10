@@ -25,7 +25,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     askFirstName: '👤 Ismingizni kiriting:',
     askLastName: '👤 Familiyangizni kiriting:',
     askPhone: '📱 Telefon raqamingizni yuboring:',
-    wrongPhoneBtn: "⚠️ Iltimos, «Telefon raqamni yuborish» tugmasini bosing.",
+    wrongPhoneBtn: '⚠️ Iltimos, «Telefon raqamni yuborish» tugmasini bosing.',
     wrongPhone: "⚠️ Iltimos, o'z telefon raqamingizni yuboring.",
     askRegion: '📍 Viloyatingizni tanlang:',
     wrongRegion: '⚠️ Iltimos, quyidagi viloyatlardan birini tanlang:',
@@ -56,7 +56,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     referralBtn: "👥 Do'st taklif qilish",
     storyBtn: '📸 Hikoya yuborish',
     adminPanelBtn: '👑 Admin Panel',
-    changeLangBtn: '🌐 Tilni o\'zgartirish / Изменить язык',
+    changeLangBtn: "🌐 Tilni o'zgartirish / Изменить язык",
     userNotFound: "⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.",
     locationInstruction:
       '📍 *Jonli joylashuvni ulashing*\n\n' +
@@ -83,10 +83,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
       `🎉 *Tabriklaymiz! Kunlik maqsad bajarildi!*\n\n${stats}\n\n🏆 *+100 ball oldiniz!*`,
     progressAlreadyDone: (stats: string) =>
       `✅ *Maqsad allaqachon bajarilgan!*\n\n${stats}`,
-    progressUpdated: (delta: string, stats: string) =>
-      `📍 *Lokatsiya yangilandi*${delta}\n\n${stats}`,
-    progressDelta: (steps: number) =>
-      ` *(+${steps.toLocaleString()} qadam)*`,
+    progressUpdated: (stats: string) =>
+      `📍 *Lokatsiya yanglilandi*\n\n${stats}`,
     balanceTitle: '💰 *Mening balansim*',
     balanceTotalPoints: (pts: string) => `🏅 Umumiy ball: *${pts}*`,
     balanceRankLabel: (rank: number) => `🏆 Reyting: *#${rank}*`,
@@ -115,7 +113,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
   story: {
     prompt:
       '📸 *Hikoya yuborish*\n\n' +
-      "Kundalik faolligingiz haqida foto hikoya yuboring.\n" +
+      'Kundalik faolligingiz haqida foto hikoya yuboring.\n' +
       "Admin tasdiqlashidan so'ng *+30 ball* olasiz!\n\n" +
       '📎 Rasm yuboring (ixtiyoriy sarlavha bilan).',
     alreadyBonused: '✅ Siz allaqachon hikoya bonusini oldingiz.',
@@ -160,8 +158,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     storyCaption: (name: string, captionLine: string, id: number) =>
       `👤 *${name}*${captionLine}\n🆔 Hikoya #${id}`,
     alreadyProcessed: "⚠️ Bu hikoya allaqachon ko'rib chiqilgan.",
-    approveSuccess:
-      '✅ Hikoya tasdiqlandi. Foydalanuvchiga +30 ball berildi.',
+    approveSuccess: '✅ Hikoya tasdiqlandi. Foydalanuvchiga +30 ball berildi.',
     rejectSuccess: '❌ Hikoya rad etildi.',
     userApproved:
       "✅ *Hikoyangiz tasdiqlandi!*\n\nHisobingizga *+30 ball* qo'shildi.",

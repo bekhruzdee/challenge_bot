@@ -13,7 +13,6 @@ const NOTIFY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 export interface LocationResult {
   isFirstLocation: boolean; // first point of the day — handler must stay silent
   wasFiltered: boolean; // rejected by a validity/speed gate — handler must stay silent
-  addedSteps: number;
   totalSteps: number;
   totalMeters: number;
   remainingSteps: number;
@@ -115,7 +114,6 @@ export class LocationService {
 
     const newMeters = progress.totalMeters + distanceM;
     const newSteps = Math.floor(newMeters / STEP_LENGTH_M);
-    const addedSteps = Math.max(0, newSteps - progress.totalSteps);
 
     const goalJustReached =
       !progress.goalReached && newSteps >= DAILY_GOAL_STEPS;
@@ -156,7 +154,6 @@ export class LocationService {
     return {
       isFirstLocation: false,
       wasFiltered: false,
-      addedSteps,
       totalSteps: newSteps,
       totalMeters: newMeters,
       remainingSteps: Math.max(0, DAILY_GOAL_STEPS - newSteps),
@@ -180,7 +177,6 @@ export class LocationService {
     return {
       isFirstLocation: false,
       wasFiltered: true,
-      addedSteps: 0,
       totalSteps: 0,
       totalMeters: 0,
       remainingSteps: DAILY_GOAL_STEPS,
@@ -195,7 +191,6 @@ export class LocationService {
     return {
       isFirstLocation: true,
       wasFiltered: false,
-      addedSteps: 0,
       totalSteps: 0,
       totalMeters: 0,
       remainingSteps: DAILY_GOAL_STEPS,
