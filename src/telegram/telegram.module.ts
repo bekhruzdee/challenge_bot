@@ -3,9 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { Bot } from 'grammy';
 import { BOT } from './telegram.constants';
 import { TelegramService } from './telegram.service';
+import { TelegramWebhookController } from './telegram-webhook.controller';
 
 @Module({
   imports: [ConfigModule],
+  controllers: [TelegramWebhookController],
   providers: [
     TelegramService,
     {
