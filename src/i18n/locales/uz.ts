@@ -54,7 +54,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     balanceBtn: '💰 Mening balansim',
     ratingBtn: '🏆 Reyting',
     referralBtn: "👥 Do'st taklif qilish",
-    storyBtn: '📸 Storis yuborish (Istoriya)',
+    storyBtn: '📸 Storis yuborish (Screenshot)',
     adminPanelBtn: "👑 Admin paneli",
     changeLangBtn: "🌐 Tilni o'zgartirish",
     userNotFound: "⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.",
@@ -112,10 +112,10 @@ Davom etish uchun quyidagi tugmani bosing.`,
 
   story: {
     prompt:
-      '📸 *Storis yuborish (Istoriya)*\n\n' +
-      'Kundalik faolligingiz haqida foto storis yuboring.\n' +
+      '📸 *Storis yuborish (Screenshot)*\n\n' +
+      'Storis skrinshoti (screenshot) yuboring.\n' +
       "Admin tasdiqlashidan so'ng *+30 ball* olasiz!\n\n" +
-      '📎 Rasm yuboring (ixtiyoriy sarlavha bilan).',
+      '📎 Skrinshot yuboring (ixtiyoriy sarlavha bilan).',
     alreadyBonused: '✅ Siz allaqachon storis bonusini oldingiz.',
     pending: "⏳ Sizning storisingiz ko'rib chiqilmoqda. Iltimos, kuting.",
     submitted:
