@@ -55,8 +55,8 @@ export const ru = {
     ratingBtn: '🏆 Рейтинг',
     referralBtn: '👥 Пригласить друга',
     storyBtn: '📸 Отправить историю',
-    adminPanelBtn: '👑 Admin Panel',
-    changeLangBtn: "🌐 Tilni o'zgartirish / Изменить язык",
+    adminPanelBtn: '👑 Панель администратора',
+    changeLangBtn: '🌐 Изменить язык',
     userNotFound: '⚠️ Пользователь не найден. Нажмите /start.',
     locationInstruction:
       '📍 *Поделитесь живой локацией*\n\n' +

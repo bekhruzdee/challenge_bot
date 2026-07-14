@@ -55,8 +55,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
     ratingBtn: '🏆 Reyting',
     referralBtn: "👥 Do'st taklif qilish",
     storyBtn: '📸 Hikoya yuborish',
-    adminPanelBtn: '👑 Admin Panel',
-    changeLangBtn: "🌐 Tilni o'zgartirish / Изменить язык",
+    adminPanelBtn: "👑 Admin paneli",
+    changeLangBtn: "🌐 Tilni o'zgartirish",
     userNotFound: "⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.",
     locationInstruction:
       '📍 *Jonli joylashuvni ulashing*\n\n' +
