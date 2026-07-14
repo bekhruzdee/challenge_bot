@@ -112,14 +112,14 @@ Davom etish uchun quyidagi tugmani bosing.`,
 
   story: {
     prompt:
-      '📸 *Hikoya yuborish*\n\n' +
-      'Kundalik faolligingiz haqida foto hikoya yuboring.\n' +
+      '📸 *Storis yuborish (Istoriya)*\n\n' +
+      'Kundalik faolligingiz haqida foto storis yuboring.\n' +
       "Admin tasdiqlashidan so'ng *+30 ball* olasiz!\n\n" +
       '📎 Rasm yuboring (ixtiyoriy sarlavha bilan).',
-    alreadyBonused: '✅ Siz allaqachon hikoya bonusini oldingiz.',
-    pending: "⏳ Sizning hikoyangiz ko'rib chiqilmoqda. Iltimos, kuting.",
+    alreadyBonused: '✅ Siz allaqachon storis bonusini oldingiz.',
+    pending: "⏳ Sizning storisingiz ko'rib chiqilmoqda. Iltimos, kuting.",
     submitted:
-      '✅ *Hikoyangiz yuborildi!*\n\n' +
+      '✅ *Storisingiz yuborildi!*\n\n' +
       "Admin ko'rib chiqqandan so'ng sizga *+30 ball* beriladi.",
   },
 
@@ -128,7 +128,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     usersBtn: '👥 Foydalanuvchilar',
     statsBtn: '📊 Statistika',
     leaderboardBtn: '🏆 Reyting',
-    storiesBtn: '📸 Hikoya tasdiqlash',
+    storiesBtn: '📸 Storis tasdiqlash',
     backBtn: '🔙 Orqaga',
     prevBtn: '◀️ Oldingi',
     nextBtn: 'Keyingi ▶️',
@@ -152,17 +152,17 @@ Davom etish uchun quyidagi tugmani bosing.`,
     leaderboardEmpty: "Hali hech kim yo'q.",
     leaderboardEntry: (prefix: string, name: string, pts: string) =>
       `${prefix} ${name} — ${pts} ball`,
-    storiesTitle: '📸 *Hikoya tasdiqlash*',
-    storiesEmpty: "Ko'rib chiqiladigan hikoya yo'q.",
-    storiesPending: (n: number) => `${n} ta hikoya kutmoqda:`,
+    storiesTitle: '📸 *Storis tasdiqlash*',
+    storiesEmpty: "Ko'rib chiqiladigan storis yo'q.",
+    storiesPending: (n: number) => `${n} ta storis kutmoqda:`,
     storyCaption: (name: string, captionLine: string, id: number) =>
-      `👤 *${name}*${captionLine}\n🆔 Hikoya #${id}`,
-    alreadyProcessed: "⚠️ Bu hikoya allaqachon ko'rib chiqilgan.",
-    approveSuccess: '✅ Hikoya tasdiqlandi. Foydalanuvchiga +30 ball berildi.',
-    rejectSuccess: '❌ Hikoya rad etildi.',
+      `👤 *${name}*${captionLine}\n🆔 Storis #${id}`,
+    alreadyProcessed: "⚠️ Bu storis allaqachon ko'rib chiqilgan.",
+    approveSuccess: '✅ Storis tasdiqlandi. Foydalanuvchiga +30 ball berildi.',
+    rejectSuccess: '❌ Storis rad etildi.',
     userApproved:
-      "✅ *Hikoyangiz tasdiqlandi!*\n\nHisobingizga *+30 ball* qo'shildi.",
+      "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+30 ball* qo'shildi.",
     userRejected:
-      "❌ *Hikoyangiz rad etildi.*\n\nQayta urinib ko'rishingiz mumkin.",
+      "❌ *Storisingiz rad etildi.*\n\nQayta urinib ko'rishingiz mumkin.",
   },
 } satisfies Translations;
