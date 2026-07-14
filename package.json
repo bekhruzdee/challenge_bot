@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "prisma generate && nest build",
-    "vercel-build": "echo BUILD_STARTED && node -v && pwd && ls && prisma generate && nest build && node scripts/set-webhook.mjs && echo BUILD_FINISHED",
+    "vercel-build": "echo BUILD_STARTED && node -v && pwd && ls && prisma migrate deploy && prisma generate && nest build && node scripts/set-webhook.mjs && echo BUILD_FINISHED",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

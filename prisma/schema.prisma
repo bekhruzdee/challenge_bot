@@ -92,6 +92,19 @@ model StorySubmission {
   @@map("story_submissions")
 }
 
+model BotChat {
+  id        Int      @id @default(autoincrement())
+  chatId    BigInt   @unique
+  title     String
+  username  String?
+  type      String
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bot_chats")
+}
+
 model Progress {
   id                     Int       @id @default(autoincrement())
   userId                 Int

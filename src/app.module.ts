@@ -10,6 +10,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { UsersModule } from './users/users.module';
 import { StoryModule } from './story/story.module';
 import { AdminModule } from './admin/admin.module';
+import { BotChatModule } from './bot-chat/bot-chat.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AdminModule } from './admin/admin.module';
     MainMenuModule,
     StoryModule,
     AdminModule,
+    BotChatModule,
   ],
   controllers: [AppController],
 })
