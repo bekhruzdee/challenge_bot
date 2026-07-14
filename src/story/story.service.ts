@@ -12,7 +12,7 @@ export interface StoryActionResult {
   userLanguage?: Language | null;
 }
 
-const STORY_BONUS_POINTS = 30;
+const STORY_BONUS_POINTS = 15;
 
 @Injectable()
 export class StoryService {

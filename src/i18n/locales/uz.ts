@@ -114,13 +114,13 @@ Davom etish uchun quyidagi tugmani bosing.`,
     prompt:
       '📸 *Storis yuborish (Screenshot)*\n\n' +
       'Storis skrinshoti (screenshot) yuboring.\n' +
-      "Admin tasdiqlashidan so'ng *+30 ball* olasiz!\n\n" +
+      "Admin tasdiqlashidan so'ng *+15 ball* olasiz!\n\n" +
       '📎 Skrinshot yuboring (ixtiyoriy sarlavha bilan).',
     alreadyBonused: '✅ Siz allaqachon storis bonusini oldingiz.',
     pending: "⏳ Sizning storisingiz ko'rib chiqilmoqda. Iltimos, kuting.",
     submitted:
       '✅ *Storisingiz yuborildi!*\n\n' +
-      "Admin ko'rib chiqqandan so'ng sizga *+30 ball* beriladi.",
+      "Admin ko'rib chiqqandan so'ng sizga *+15 ball* beriladi.",
   },
 
   admin: {
@@ -158,10 +158,10 @@ Davom etish uchun quyidagi tugmani bosing.`,
     storyCaption: (name: string, captionLine: string, id: number) =>
       `👤 *${name}*${captionLine}\n🆔 Storis #${id}`,
     alreadyProcessed: "⚠️ Bu storis allaqachon ko'rib chiqilgan.",
-    approveSuccess: '✅ Storis tasdiqlandi. Foydalanuvchiga +30 ball berildi.',
+    approveSuccess: '✅ Storis tasdiqlandi. Foydalanuvchiga +15 ball berildi.',
     rejectSuccess: '❌ Storis rad etildi.',
     userApproved:
-      "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+30 ball* qo'shildi.",
+      "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+15 ball* qo'shildi.",
     userRejected:
       "❌ *Storisingiz rad etildi.*\n\nQayta urinib ko'rishingiz mumkin.",
   },

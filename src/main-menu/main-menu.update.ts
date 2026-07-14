@@ -10,7 +10,7 @@ import { SubscriptionService } from '../subscription/subscription.service';
 import { notSubscribedKeyboard } from '../registration/keyboards/registration.keyboard';
 
 const DAILY_GOAL_STEPS = 10_000;
-const REFERRAL_BONUS_PER_USER = 15;
+const REFERRAL_BONUS_PER_USER = 10;
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 @Injectable()

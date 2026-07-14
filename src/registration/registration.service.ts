@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { RegistrationData } from './interfaces/registration-data.interface';
 
-const REFERRAL_BONUS_POINTS = 15;
+const REFERRAL_BONUS_POINTS = 10;
 
 @Injectable()
 export class RegistrationService {
