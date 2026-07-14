@@ -177,7 +177,7 @@ export class RegistrationUpdate implements OnModuleInit {
     );
     if (!user) return;
 
-    await this.handleSubscriptionCheck(ctx, user.id, user.language);
+    await this.handleSubscriptionCheck(ctx, user.id, user.language, user.registrationCompleted);
   }
 
   // ─── Inline button: check subscription ──────────────────────────────────────
@@ -190,7 +190,7 @@ export class RegistrationUpdate implements OnModuleInit {
     await ctx.answerCallbackQuery({ text: t.registration.checkingAnswer });
 
     if (!user) return;
-    await this.handleSubscriptionCheck(ctx, user.id, user.language);
+    await this.handleSubscriptionCheck(ctx, user.id, user.language, user.registrationCompleted);
   }
 
   // ─── Subscription gate ───────────────────────────────────────────────────────
@@ -199,6 +199,7 @@ export class RegistrationUpdate implements OnModuleInit {
     ctx: Context,
     userId: number,
     lang: Language | null,
+    registrationCompleted: boolean,
   ): Promise<void> {
     const t = this.i18n.t(lang);
     const subscribed = await this.subscriptionService.isSubscribed(ctx.from!.id);
@@ -214,11 +215,13 @@ export class RegistrationUpdate implements OnModuleInit {
           reply_markup: notSubscribedKeyboard(t, channelLink),
         });
       }
-      await this.registrationService.upsertSession(
-        userId,
-        RegistrationStep.CHECKING_SUB,
-        {},
-      );
+      if (!registrationCompleted) {
+        await this.registrationService.upsertSession(
+          userId,
+          RegistrationStep.CHECKING_SUB,
+          {},
+        );
+      }
       return;
     }
 
@@ -226,6 +229,11 @@ export class RegistrationUpdate implements OnModuleInit {
       await ctx.editMessageReplyMarkup();
     } catch {
       // Already removed — safe to ignore.
+    }
+
+    if (registrationCompleted) {
+      await this.showMainMenu(ctx, lang);
+      return;
     }
 
     await this.registrationService.upsertSession(
