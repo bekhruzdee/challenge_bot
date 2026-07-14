@@ -7,7 +7,8 @@ import { haversineMeters } from './utils/haversine';
 const STEP_LENGTH_M = 0.75;
 const DAILY_GOAL_STEPS = 10_000;
 const GOAL_BONUS_POINTS = 100;
-const MAX_SPEED_KMH = 15;
+const MIN_DISTANCE_M = 10;
+const MAX_SPEED_KMH = 10;
 const NOTIFY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface LocationResult {
@@ -93,8 +94,8 @@ export class LocationService {
       return this.filteredResult();
     }
 
-    // Reject zero distance (user has not moved).
-    if (distanceM === 0) {
+    // Reject movement below minimum threshold (GPS noise, user has not meaningfully moved).
+    if (distanceM < MIN_DISTANCE_M) {
       return this.filteredResult();
     }
 
