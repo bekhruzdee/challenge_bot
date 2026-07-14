@@ -14,6 +14,7 @@ import {
   rulesKeyboard,
 } from './keyboards/registration.keyboard';
 import { RegistrationService } from './registration.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 const LANG_SELECT_PROMPT = 'Tilni tanlang / Выберите язык:';
 
@@ -26,6 +27,7 @@ export class RegistrationUpdate implements OnModuleInit {
   constructor(
     @Inject(BOT) private readonly bot: Bot,
     private readonly registrationService: RegistrationService,
+    private readonly subscriptionService: SubscriptionService,
     private readonly configService: ConfigService,
     private readonly i18n: I18nService,
   ) {
@@ -199,10 +201,10 @@ export class RegistrationUpdate implements OnModuleInit {
     lang: Language | null,
   ): Promise<void> {
     const t = this.i18n.t(lang);
-    const subscribed = await this.isSubscribed(ctx.from!.id);
+    const subscribed = await this.subscriptionService.isSubscribed(ctx.from!.id);
 
     if (!subscribed) {
-      const channelLink = this.resolveChannelLink();
+      const channelLink = this.subscriptionService.getChannelLink();
       try {
         await ctx.editMessageText(t.registration.notSubscribed, {
           reply_markup: notSubscribedKeyboard(t, channelLink),
@@ -362,48 +364,4 @@ export class RegistrationUpdate implements OnModuleInit {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  private async isSubscribed(telegramUserId: number): Promise<boolean> {
-    const raw = (this.configService.get<string>('CHANNEL_ID') ?? '').trim();
-    if (!raw) {
-      this.logger.warn('CHANNEL_ID is not set — subscription gate is disabled');
-      return true;
-    }
-
-    const channelId = this.normaliseChannelId(raw);
-
-    try {
-      const member = await this.bot.api.getChatMember(
-        channelId,
-        telegramUserId,
-      );
-      this.logger.debug(
-        `[sub] channel=${channelId} user=${telegramUserId} → ${member.status}`,
-      );
-      return ['creator', 'administrator', 'member'].includes(member.status);
-    } catch (err: unknown) {
-      const detail = err instanceof Error ? err.message : String(err);
-      this.logger.error(
-        `[sub] getChatMember failed — channel=${channelId} user=${telegramUserId}: ${detail}`,
-      );
-      return false;
-    }
-  }
-
-  private normaliseChannelId(raw: string): string | number {
-    if (raw.startsWith('@')) return raw;
-    if (raw.startsWith('-')) return raw;
-    const n = parseInt(raw, 10);
-    if (!isNaN(n)) return -n;
-    return `@${raw}`;
-  }
-
-  private resolveChannelLink(): string {
-    const link = this.configService.get<string>('CHANNEL_LINK', '').trim();
-    if (!link) {
-      this.logger.warn(
-        'CHANNEL_LINK is not set — channel button will have an empty URL',
-      );
-    }
-    return link;
-  }
 }

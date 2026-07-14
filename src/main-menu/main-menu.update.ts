@@ -1,11 +1,13 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot, Composer, Context } from 'grammy';
+import { Bot, Composer, Context, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { Translations } from '../i18n/types/translations.interface';
 import { LeaderboardEntry, UsersService } from '../users/users.service';
 import { LocationResult, LocationService } from '../location/location.service';
+import { SubscriptionService } from '../subscription/subscription.service';
+import { notSubscribedKeyboard } from '../registration/keyboards/registration.keyboard';
 
 const DAILY_GOAL_STEPS = 10_000;
 const REFERRAL_BONUS_PER_USER = 15;
@@ -19,12 +21,15 @@ export class MainMenuUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly locationService: LocationService,
     private readonly usersService: UsersService,
+    private readonly subscriptionService: SubscriptionService,
     private readonly configService: ConfigService,
     private readonly i18n: I18nService,
   ) {}
 
   onModuleInit(): void {
     const composer = new Composer<Context>();
+
+    composer.use((ctx, next) => this.requireSubscription(ctx, next));
 
     composer.on(['message:location', 'edited_message:location'], (ctx) =>
       this.onLocation(ctx),
@@ -48,6 +53,27 @@ export class MainMenuUpdate implements OnModuleInit {
 
     this.bot.use(composer);
     this.logger.log('Main menu handlers registered');
+  }
+
+  // ─── Subscription guard ──────────────────────────────────────────────────────
+
+  private async requireSubscription(
+    ctx: Context,
+    next: NextFunction,
+  ): Promise<void> {
+    if (!ctx.from) return next();
+    const user = await this.usersService.findByTelegramId(BigInt(ctx.from.id));
+    if (!user?.registrationCompleted) return next();
+
+    const subscribed = await this.subscriptionService.isSubscribed(ctx.from.id);
+    if (!subscribed) {
+      const t = this.i18n.t(user.language);
+      await ctx.reply(t.registration.notSubscribed, {
+        reply_markup: notSubscribedKeyboard(t, this.subscriptionService.getChannelLink()),
+      });
+      return;
+    }
+    return next();
   }
 
   // ─── Location button ─────────────────────────────────────────────────────────

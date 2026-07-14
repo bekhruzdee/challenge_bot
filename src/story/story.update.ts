@@ -1,9 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Bot, Composer, Context } from 'grammy';
+import { Bot, Composer, Context, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { UsersService } from '../users/users.service';
 import { StoryService } from './story.service';
+import { SubscriptionService } from '../subscription/subscription.service';
+import { notSubscribedKeyboard } from '../registration/keyboards/registration.keyboard';
 
 @Injectable()
 export class StoryUpdate implements OnModuleInit {
@@ -13,11 +15,14 @@ export class StoryUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly usersService: UsersService,
     private readonly storyService: StoryService,
+    private readonly subscriptionService: SubscriptionService,
     private readonly i18n: I18nService,
   ) {}
 
   onModuleInit(): void {
     const composer = new Composer<Context>();
+
+    composer.use((ctx, next) => this.requireSubscription(ctx, next));
 
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.storyBtn),
@@ -27,6 +32,27 @@ export class StoryUpdate implements OnModuleInit {
 
     this.bot.use(composer);
     this.logger.log('Story handlers registered');
+  }
+
+  // ─── Subscription guard ──────────────────────────────────────────────────────
+
+  private async requireSubscription(
+    ctx: Context,
+    next: NextFunction,
+  ): Promise<void> {
+    if (!ctx.from) return next();
+    const user = await this.usersService.findByTelegramId(BigInt(ctx.from.id));
+    if (!user?.registrationCompleted) return next();
+
+    const subscribed = await this.subscriptionService.isSubscribed(ctx.from.id);
+    if (!subscribed) {
+      const t = this.i18n.t(user.language);
+      await ctx.reply(t.registration.notSubscribed, {
+        reply_markup: notSubscribedKeyboard(t, this.subscriptionService.getChannelLink()),
+      });
+      return;
+    }
+    return next();
   }
 
   private async onStoryButton(ctx: Context): Promise<void> {

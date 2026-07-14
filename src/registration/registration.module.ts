@@ -3,11 +3,12 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { UsersModule } from '../users/users.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { RegistrationService } from './registration.service';
 import { RegistrationUpdate } from './registration.update';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, TelegramModule, UsersModule],
+  imports: [ConfigModule, PrismaModule, TelegramModule, UsersModule, SubscriptionModule],
   providers: [RegistrationService, RegistrationUpdate],
 })
 export class RegistrationModule {}
