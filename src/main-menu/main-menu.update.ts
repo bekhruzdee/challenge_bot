@@ -130,11 +130,9 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    if (result.shouldNotify) {
-      await ctx.reply(this.buildLocationReply(result, t), {
-        parse_mode: 'Markdown',
-      });
-    }
+    await ctx.reply(this.buildLocationReply(result, t), {
+      parse_mode: 'Markdown',
+    });
   }
 
   private buildLocationReply(r: LocationResult, t: Translations): string {
