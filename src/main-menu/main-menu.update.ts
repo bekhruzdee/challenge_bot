@@ -104,6 +104,8 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
+    // ctx.message is set only on the initial live location share, not on auto-updates.
+    const isNewSession = !!ctx.message;
     const { latitude, longitude, horizontal_accuracy } = location;
 
     const [user, result] = await Promise.all([
@@ -123,16 +125,52 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    if (result.wasFiltered) return;
-
     if (result.isFirstLocation) {
       await ctx.reply(t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
       return;
     }
 
-    await ctx.reply(this.buildLocationReply(result, t), {
-      parse_mode: 'Markdown',
-    });
+    if (isNewSession) {
+      // Always acknowledge a new session with current progress, even when this
+      // particular update was filtered (user restarted from the same spot, or
+      // the fix had poor accuracy).
+      let displayResult: LocationResult | null = result.wasFiltered
+        ? null
+        : result;
+      if (!displayResult) {
+        const progress = await this.locationService.getTodayProgress(user!.id);
+        if (!progress) {
+          // No accumulated progress yet despite having a prior location row —
+          // treat identically to a first-of-day start.
+          await ctx.reply(t.mainMenu.trackingStarted, {
+            parse_mode: 'Markdown',
+          });
+          return;
+        }
+        displayResult = {
+          isFirstLocation: false,
+          wasFiltered: false,
+          totalSteps: progress.totalSteps,
+          totalMeters: progress.totalMeters,
+          remainingSteps: Math.max(0, DAILY_GOAL_STEPS - progress.totalSteps),
+          goalJustReached: false,
+          alreadyReachedGoal: progress.goalReached,
+          shouldNotify: true,
+        };
+      }
+      await ctx.reply(this.buildLocationReply(displayResult, t), {
+        parse_mode: 'Markdown',
+      });
+      return;
+    }
+
+    // Automatic updates: silent unless the 15-minute throttle allows.
+    if (result.wasFiltered) return;
+    if (result.shouldNotify) {
+      await ctx.reply(this.buildLocationReply(result, t), {
+        parse_mode: 'Markdown',
+      });
+    }
   }
 
   private buildLocationReply(r: LocationResult, t: Translations): string {
