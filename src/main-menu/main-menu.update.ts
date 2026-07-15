@@ -69,7 +69,10 @@ export class MainMenuUpdate implements OnModuleInit {
     if (!subscribed) {
       const t = this.i18n.t(user.language);
       await ctx.reply(t.registration.notSubscribed, {
-        reply_markup: notSubscribedKeyboard(t, this.subscriptionService.getChannelLink()),
+        reply_markup: notSubscribedKeyboard(
+          t,
+          this.subscriptionService.getChannelLink(),
+        ),
       });
       return;
     }
@@ -101,7 +104,7 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    const { latitude, longitude } = location;
+    const { latitude, longitude, horizontal_accuracy } = location;
 
     const [user, result] = await Promise.all([
       this.usersService.findByTelegramId(telegramId),
@@ -109,6 +112,7 @@ export class MainMenuUpdate implements OnModuleInit {
         telegramId,
         latitude,
         longitude,
+        horizontal_accuracy,
       ),
     ]);
 

@@ -7,8 +7,11 @@ import { haversineMeters } from './utils/haversine';
 const STEP_LENGTH_M = 0.75;
 const DAILY_GOAL_STEPS = 10_000;
 const GOAL_BONUS_POINTS = 100;
-const MIN_DISTANCE_M = 10;
+const MIN_DISTANCE_M = 20;
 const MAX_SPEED_KMH = 10;
+const MAX_HORIZONTAL_ACCURACY_M = 20;
+const MIN_INTERVAL_MS = 30_000; // 30 seconds
+const DAILY_STEP_CAP = 40_000;
 const NOTIFY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface LocationResult {
@@ -37,21 +40,39 @@ export class LocationService {
     telegramId: bigint,
     latitude: number,
     longitude: number,
+    horizontalAccuracy?: number,
   ): Promise<LocationResult | null> {
     const user = await this.usersService.findByTelegramId(telegramId);
     if (!user) return null;
-    return this.processLocation(user.id, latitude, longitude);
+    return this.processLocation(
+      user.id,
+      latitude,
+      longitude,
+      horizontalAccuracy,
+    );
   }
 
   async processLocation(
     userId: number,
     latitude: number,
     longitude: number,
+    horizontalAccuracy?: number,
   ): Promise<LocationResult> {
     // ── 0. Validate coordinates ──────────────────────────────────────────────
     if (!this.isValidCoordinate(latitude, longitude)) {
       this.logger.warn(
         `[location] userId=${userId} invalid coordinates ${latitude},${longitude} — ignored`,
+      );
+      return this.filteredResult();
+    }
+
+    // Reject updates with poor GPS accuracy (> 20 m radius).
+    if (
+      horizontalAccuracy !== undefined &&
+      horizontalAccuracy > MAX_HORIZONTAL_ACCURACY_M
+    ) {
+      this.logger.debug(
+        `[location] userId=${userId} accuracy=${horizontalAccuracy}m — filtered (poor accuracy)`,
       );
       return this.filteredResult();
     }
@@ -94,6 +115,14 @@ export class LocationService {
       return this.filteredResult();
     }
 
+    // Reject updates arriving faster than MIN_INTERVAL_MS (Telegram burst, user stationary).
+    if (elapsedMs < MIN_INTERVAL_MS) {
+      this.logger.debug(
+        `[location] userId=${userId} elapsedMs=${elapsedMs} — filtered (too soon)`,
+      );
+      return this.filteredResult();
+    }
+
     // Reject movement below minimum threshold (GPS noise, user has not meaningfully moved).
     if (distanceM < MIN_DISTANCE_M) {
       return this.filteredResult();
@@ -113,8 +142,16 @@ export class LocationService {
     // touched for first-location or filtered updates.
     const progress = await this.getOrCreateProgress(userId, today);
 
+    // Daily cap: once the user has accumulated DAILY_STEP_CAP steps, stop counting.
+    if (progress.totalSteps >= DAILY_STEP_CAP) {
+      return this.filteredResult();
+    }
+
     const newMeters = progress.totalMeters + distanceM;
-    const newSteps = Math.floor(newMeters / STEP_LENGTH_M);
+    const newSteps = Math.min(
+      Math.floor(newMeters / STEP_LENGTH_M),
+      DAILY_STEP_CAP,
+    );
 
     const goalJustReached =
       !progress.goalReached && newSteps >= DAILY_GOAL_STEPS;
