@@ -106,6 +106,8 @@ export const ru = {
     referralBonusNote: (perUser: number) =>
       `<i>+${perUser} очков за каждого зарегистрированного друга!</i>`,
     referralNoBotUsername: '(BOT_USERNAME не установлен в .env)',
+    speedTooFastWarning: (speedKmh: string) =>
+      `⚠️ Вы движетесь со скоростью ${speedKmh} км/ч. Движение с такой скоростью не засчитывается как шаги — пожалуйста, идите пешком.`,
   },
 
   story: {

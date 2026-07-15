@@ -90,7 +90,9 @@ export class MainMenuUpdate implements OnModuleInit {
   private async onLocationButton(ctx: Context): Promise<void> {
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
-    await this.safeReply(ctx, t.mainMenu.locationInstruction, { parse_mode: 'Markdown' });
+    await this.safeReply(ctx, t.mainMenu.locationInstruction, {
+      parse_mode: 'Markdown',
+    });
   }
 
   // ─── Live location updates ───────────────────────────────────────────────────
@@ -102,7 +104,9 @@ export class MainMenuUpdate implements OnModuleInit {
     if (ctx.message && !location.live_period) {
       const user = await this.usersService.findByTelegramId(telegramId);
       const t = this.i18n.t(user?.language);
-      await this.safeReply(ctx, t.mainMenu.staticLocationWarning, { parse_mode: 'Markdown' });
+      await this.safeReply(ctx, t.mainMenu.staticLocationWarning, {
+        parse_mode: 'Markdown',
+      });
       return;
     }
 
@@ -128,11 +132,20 @@ export class MainMenuUpdate implements OnModuleInit {
     }
 
     if (result.isFirstLocation) {
-      await this.safeReply(ctx, t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
+      await this.safeReply(ctx, t.mainMenu.trackingStarted, {
+        parse_mode: 'Markdown',
+      });
       return;
     }
 
     if (isNewSession) {
+      if (result.filterReason === 'too_fast' && result.shouldWarnSpeed) {
+        await this.safeReply(
+          ctx,
+          t.mainMenu.speedTooFastWarning(result.speedKmh!.toFixed(1)),
+          { parse_mode: 'Markdown' },
+        );
+      }
       // Always acknowledge a new session with current progress, even when this
       // particular update was filtered (user restarted from the same spot, or
       // the fix had poor accuracy).
@@ -144,7 +157,9 @@ export class MainMenuUpdate implements OnModuleInit {
         if (!progress) {
           // No accumulated progress yet despite having a prior location row —
           // treat identically to a first-of-day start.
-          await this.safeReply(ctx, t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
+          await this.safeReply(ctx, t.mainMenu.trackingStarted, {
+            parse_mode: 'Markdown',
+          });
           return;
         }
         displayResult = {
@@ -158,14 +173,27 @@ export class MainMenuUpdate implements OnModuleInit {
           shouldNotify: true,
         };
       }
-      await this.safeReply(ctx, this.buildLocationReply(displayResult, t), { parse_mode: 'Markdown' });
+      await this.safeReply(ctx, this.buildLocationReply(displayResult, t), {
+        parse_mode: 'Markdown',
+      });
       return;
     }
 
     // Automatic updates: silent unless the 15-minute throttle allows.
-    if (result.wasFiltered) return;
+    if (result.wasFiltered) {
+      if (result.filterReason === 'too_fast' && result.shouldWarnSpeed) {
+        await this.safeReply(
+          ctx,
+          t.mainMenu.speedTooFastWarning(result.speedKmh!.toFixed(1)),
+          { parse_mode: 'Markdown' },
+        );
+      }
+      return;
+    }
     if (result.shouldNotify) {
-      await this.safeReply(ctx, this.buildLocationReply(result, t), { parse_mode: 'Markdown' });
+      await this.safeReply(ctx, this.buildLocationReply(result, t), {
+        parse_mode: 'Markdown',
+      });
     }
   }
 

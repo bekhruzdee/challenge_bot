@@ -78,6 +78,7 @@ export interface Translations {
     referralPointsLabel: (pts: number) => string;
     referralBonusNote: (perUser: number) => string;
     referralNoBotUsername: string;
+    speedTooFastWarning: (speedKmh: string) => string;
   };
 
   story: {

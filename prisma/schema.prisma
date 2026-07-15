@@ -115,6 +115,7 @@ model Progress {
   goalReached            Boolean   @default(false)
   pointsAwarded          Boolean   @default(false)
   lastProgressNotifiedAt DateTime?
+  lastSpeedWarningAt     DateTime?
 
   @@unique([userId, date])
   @@index([userId])

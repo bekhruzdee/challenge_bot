@@ -108,6 +108,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
     referralBonusNote: (perUser: number) =>
       `<i>Har bir ro'yxatdan o'tgan do'stingiz uchun +${perUser} ball!</i>`,
     referralNoBotUsername: "(BOT_USERNAME .env faylida o'rnatilmagan)",
+    speedTooFastWarning: (speedKmh: string) =>
+      `⚠️ Siz ${speedKmh} km/soat tezlikda harakatlanmoqdasiz. Bu tezlikdagi harakat qadam sifatida hisoblanmaydi — iltimos, piyoda yuring.`,
   },
 
   story: {

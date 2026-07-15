@@ -13,6 +13,16 @@ const MAX_HORIZONTAL_ACCURACY_M = 20;
 const MIN_INTERVAL_MS = 30_000; // 30 seconds
 const DAILY_STEP_CAP = 40_000;
 const NOTIFY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const SPEED_WARNING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+export type FilterReason =
+  | 'invalid_coords'
+  | 'poor_accuracy'
+  | 'clock_skew'
+  | 'too_soon'
+  | 'too_close'
+  | 'too_fast'
+  | 'daily_cap';
 
 export interface LocationResult {
   isFirstLocation: boolean; // first point of the day — handler must stay silent
@@ -24,6 +34,10 @@ export interface LocationResult {
   alreadyReachedGoal: boolean;
   /** Whether the handler should send a progress notification to the user. */
   shouldNotify: boolean;
+  filterReason?: FilterReason;
+  speedKmh?: number;
+  /** Whether a throttled speed-warning message should be sent. */
+  shouldWarnSpeed?: boolean;
 }
 
 @Injectable()
@@ -63,7 +77,7 @@ export class LocationService {
       this.logger.warn(
         `[location] userId=${userId} invalid coordinates ${latitude},${longitude} — ignored`,
       );
-      return this.filteredResult();
+      return this.filteredResult('invalid_coords');
     }
 
     // Reject updates with poor GPS accuracy (> 20 m radius).
@@ -74,7 +88,7 @@ export class LocationService {
       this.logger.debug(
         `[location] userId=${userId} accuracy=${horizontalAccuracy}m — filtered (poor accuracy)`,
       );
-      return this.filteredResult();
+      return this.filteredResult('poor_accuracy');
     }
 
     const today = this.todayUtc();
@@ -112,7 +126,7 @@ export class LocationService {
       this.logger.debug(
         `[location] userId=${userId} elapsedMs=${elapsedMs} — ignored (time)`,
       );
-      return this.filteredResult();
+      return this.filteredResult('clock_skew');
     }
 
     // Reject updates arriving faster than MIN_INTERVAL_MS (Telegram burst, user stationary).
@@ -120,12 +134,12 @@ export class LocationService {
       this.logger.debug(
         `[location] userId=${userId} elapsedMs=${elapsedMs} — filtered (too soon)`,
       );
-      return this.filteredResult();
+      return this.filteredResult('too_soon');
     }
 
     // Reject movement below minimum threshold (GPS noise, user has not meaningfully moved).
     if (distanceM < MIN_DISTANCE_M) {
-      return this.filteredResult();
+      return this.filteredResult('too_close');
     }
 
     // Reject movement faster than MAX_SPEED_KMH (car, GPS jump).
@@ -134,7 +148,20 @@ export class LocationService {
       this.logger.debug(
         `[location] userId=${userId} speed=${speedKmh.toFixed(1)} km/h — filtered`,
       );
-      return this.filteredResult();
+      // Throttled speed warning: at most once per SPEED_WARNING_INTERVAL_MS.
+      const progress = await this.getOrCreateProgress(userId, today);
+      const lastWarned = progress.lastSpeedWarningAt;
+      const msSinceLastWarn = lastWarned
+        ? now - lastWarned.getTime()
+        : Infinity;
+      const shouldWarnSpeed = msSinceLastWarn >= SPEED_WARNING_INTERVAL_MS;
+      if (shouldWarnSpeed) {
+        await this.prisma.progress.update({
+          where: { id: progress.id },
+          data: { lastSpeedWarningAt: new Date(now) },
+        });
+      }
+      return this.filteredResult('too_fast', speedKmh, shouldWarnSpeed);
     }
 
     // ── 5. Valid movement: load/create progress and update ───────────────────
@@ -144,7 +171,7 @@ export class LocationService {
 
     // Daily cap: once the user has accumulated DAILY_STEP_CAP steps, stop counting.
     if (progress.totalSteps >= DAILY_STEP_CAP) {
-      return this.filteredResult();
+      return this.filteredResult('daily_cap');
     }
 
     const newMeters = progress.totalMeters + distanceM;
@@ -211,7 +238,11 @@ export class LocationService {
   // ── Private helpers ──────────────────────────────────────────────────────────
 
   /** Silent result for all non-first rejected updates (invalid time, distance, speed, coords). */
-  private filteredResult(): LocationResult {
+  private filteredResult(
+    reason?: FilterReason,
+    speedKmh?: number,
+    shouldWarnSpeed?: boolean,
+  ): LocationResult {
     return {
       isFirstLocation: false,
       wasFiltered: true,
@@ -221,6 +252,9 @@ export class LocationService {
       goalJustReached: false,
       alreadyReachedGoal: false,
       shouldNotify: false,
+      filterReason: reason,
+      speedKmh,
+      shouldWarnSpeed,
     };
   }
 
