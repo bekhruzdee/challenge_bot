@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot, Composer, Context, NextFunction } from 'grammy';
+import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { Translations } from '../i18n/types/translations.interface';
@@ -68,12 +68,18 @@ export class MainMenuUpdate implements OnModuleInit {
     const subscribed = await this.subscriptionService.isSubscribed(ctx.from.id);
     if (!subscribed) {
       const t = this.i18n.t(user.language);
-      await ctx.reply(t.registration.notSubscribed, {
-        reply_markup: notSubscribedKeyboard(
-          t,
-          this.subscriptionService.getChannelLink(),
-        ),
-      });
+      try {
+        await ctx.reply(t.registration.notSubscribed, {
+          reply_markup: notSubscribedKeyboard(
+            t,
+            this.subscriptionService.getChannelLink(),
+          ),
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[main-menu] requireSubscription reply failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+        );
+      }
       return;
     }
     return next();
@@ -84,9 +90,7 @@ export class MainMenuUpdate implements OnModuleInit {
   private async onLocationButton(ctx: Context): Promise<void> {
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
-    await ctx.reply(t.mainMenu.locationInstruction, {
-      parse_mode: 'Markdown',
-    });
+    await this.safeReply(ctx, t.mainMenu.locationInstruction, { parse_mode: 'Markdown' });
   }
 
   // ─── Live location updates ───────────────────────────────────────────────────
@@ -98,9 +102,7 @@ export class MainMenuUpdate implements OnModuleInit {
     if (ctx.message && !location.live_period) {
       const user = await this.usersService.findByTelegramId(telegramId);
       const t = this.i18n.t(user?.language);
-      await ctx.reply(t.mainMenu.staticLocationWarning, {
-        parse_mode: 'Markdown',
-      });
+      await this.safeReply(ctx, t.mainMenu.staticLocationWarning, { parse_mode: 'Markdown' });
       return;
     }
 
@@ -121,12 +123,12 @@ export class MainMenuUpdate implements OnModuleInit {
     const t = this.i18n.t(user?.language);
 
     if (!result) {
-      await ctx.reply(t.mainMenu.userNotFound);
+      await this.safeReply(ctx, t.mainMenu.userNotFound);
       return;
     }
 
     if (result.isFirstLocation) {
-      await ctx.reply(t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
+      await this.safeReply(ctx, t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
       return;
     }
 
@@ -142,9 +144,7 @@ export class MainMenuUpdate implements OnModuleInit {
         if (!progress) {
           // No accumulated progress yet despite having a prior location row —
           // treat identically to a first-of-day start.
-          await ctx.reply(t.mainMenu.trackingStarted, {
-            parse_mode: 'Markdown',
-          });
+          await this.safeReply(ctx, t.mainMenu.trackingStarted, { parse_mode: 'Markdown' });
           return;
         }
         displayResult = {
@@ -158,18 +158,14 @@ export class MainMenuUpdate implements OnModuleInit {
           shouldNotify: true,
         };
       }
-      await ctx.reply(this.buildLocationReply(displayResult, t), {
-        parse_mode: 'Markdown',
-      });
+      await this.safeReply(ctx, this.buildLocationReply(displayResult, t), { parse_mode: 'Markdown' });
       return;
     }
 
     // Automatic updates: silent unless the 15-minute throttle allows.
     if (result.wasFiltered) return;
     if (result.shouldNotify) {
-      await ctx.reply(this.buildLocationReply(result, t), {
-        parse_mode: 'Markdown',
-      });
+      await this.safeReply(ctx, this.buildLocationReply(result, t), { parse_mode: 'Markdown' });
     }
   }
 
@@ -205,7 +201,7 @@ export class MainMenuUpdate implements OnModuleInit {
     const t = this.i18n.t(user?.language);
 
     if (!user) {
-      await ctx.reply(t.mainMenu.userNotFound);
+      await this.safeReply(ctx, t.mainMenu.userNotFound);
       return;
     }
 
@@ -232,7 +228,7 @@ export class MainMenuUpdate implements OnModuleInit {
       text += m.balanceNoLocation;
     }
 
-    await ctx.reply(text, { parse_mode: 'Markdown' });
+    await this.safeReply(ctx, text, { parse_mode: 'Markdown' });
   }
 
   // ─── Leaderboard ─────────────────────────────────────────────────────────────
@@ -243,7 +239,7 @@ export class MainMenuUpdate implements OnModuleInit {
     const t = this.i18n.t(user?.language);
 
     if (!user) {
-      await ctx.reply(t.mainMenu.userNotFound);
+      await this.safeReply(ctx, t.mainMenu.userNotFound);
       return;
     }
 
@@ -252,7 +248,8 @@ export class MainMenuUpdate implements OnModuleInit {
       this.usersService.getUserRank(user.id),
     ]);
 
-    await ctx.reply(
+    await this.safeReply(
+      ctx,
       this.buildLeaderboard(leaderboard, user.id, rank, user.points, t),
       { parse_mode: 'Markdown' },
     );
@@ -298,7 +295,7 @@ export class MainMenuUpdate implements OnModuleInit {
     const t = this.i18n.t(user?.language);
 
     if (!user) {
-      await ctx.reply(t.mainMenu.userNotFound);
+      await this.safeReply(ctx, t.mainMenu.userNotFound);
       return;
     }
 
@@ -326,6 +323,22 @@ export class MainMenuUpdate implements OnModuleInit {
       `${m.referralPointsLabel(totalReferralPoints)}\n\n` +
       m.referralBonusNote(REFERRAL_BONUS_PER_USER);
 
-    await ctx.reply(text, { parse_mode: 'HTML' });
+    await this.safeReply(ctx, text, { parse_mode: 'HTML' });
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  private async safeReply(
+    ctx: Context,
+    text: string,
+    other?: Parameters<Context['reply']>[1],
+  ): Promise<void> {
+    try {
+      await ctx.reply(text, other);
+    } catch (err) {
+      this.logger.warn(
+        `[main-menu] ctx.reply failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
   }
 }

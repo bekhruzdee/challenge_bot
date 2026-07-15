@@ -36,7 +36,9 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import express from 'express';
+import type { IncomingMessage, ServerResponse } from 'http';
 import { AppModule } from './app.module';
+import { WebhookExceptionFilter } from './common/filters/webhook-exception.filter';
 
 const server = express();
 
@@ -47,10 +49,11 @@ async function bootstrap() {
     logger: ['log', 'warn', 'error'],
   });
 
+  app.useGlobalFilters(new WebhookExceptionFilter());
   await app.init();
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (!bootstrapPromise) {
     bootstrapPromise = bootstrap();
   }

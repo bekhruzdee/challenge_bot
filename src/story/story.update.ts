@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Bot, Composer, Context, NextFunction } from 'grammy';
+import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { UsersService } from '../users/users.service';
@@ -47,7 +47,7 @@ export class StoryUpdate implements OnModuleInit {
     const subscribed = await this.subscriptionService.isSubscribed(ctx.from.id);
     if (!subscribed) {
       const t = this.i18n.t(user.language);
-      await ctx.reply(t.registration.notSubscribed, {
+      await this.safeReply(ctx, t.registration.notSubscribed, {
         reply_markup: notSubscribedKeyboard(t, this.subscriptionService.getChannelLink()),
       });
       return;
@@ -58,7 +58,7 @@ export class StoryUpdate implements OnModuleInit {
   private async onStoryButton(ctx: Context): Promise<void> {
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
-    await ctx.reply(t.story.prompt, { parse_mode: 'Markdown' });
+    await this.safeReply(ctx, t.story.prompt, { parse_mode: 'Markdown' });
   }
 
   private async onPhoto(ctx: Context): Promise<void> {
@@ -70,13 +70,13 @@ export class StoryUpdate implements OnModuleInit {
     const t = this.i18n.t(user.language);
 
     if (user.storyBonusGiven) {
-      await ctx.reply(t.story.alreadyBonused);
+      await this.safeReply(ctx, t.story.alreadyBonused);
       return;
     }
 
     const hasPending = await this.storyService.hasPendingSubmission(user.id);
     if (hasPending) {
-      await ctx.reply(t.story.pending);
+      await this.safeReply(ctx, t.story.pending);
       return;
     }
 
@@ -85,6 +85,20 @@ export class StoryUpdate implements OnModuleInit {
     const caption = ctx.msg!.caption ?? undefined;
 
     await this.storyService.createSubmission(user.id, fileId, caption);
-    await ctx.reply(t.story.submitted, { parse_mode: 'Markdown' });
+    await this.safeReply(ctx, t.story.submitted, { parse_mode: 'Markdown' });
+  }
+
+  private async safeReply(
+    ctx: Context,
+    text: string,
+    other?: Parameters<Context['reply']>[1],
+  ): Promise<void> {
+    try {
+      await ctx.reply(text, other);
+    } catch (err) {
+      this.logger.warn(
+        `[story] ctx.reply failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
   }
 }

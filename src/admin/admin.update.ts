@@ -34,7 +34,7 @@ export class AdminUpdate implements OnModuleInit {
     // Block non-admins from all handlers in this composer.
     composer.use(async (ctx, next) => {
       if (!this.isAdmin(ctx)) {
-        if (ctx.callbackQuery) await ctx.answerCallbackQuery();
+        if (ctx.callbackQuery) await this.safeAnswerCallbackQuery(ctx);
         return;
       }
       return next();
@@ -73,16 +73,22 @@ export class AdminUpdate implements OnModuleInit {
 
   private async onAdminCommand(ctx: Context): Promise<void> {
     const t = await this.getT(ctx);
-    await ctx.reply(t.admin.panelTitle, {
-      parse_mode: 'Markdown',
-      reply_markup: adminMenuKeyboard(t),
-    });
+    try {
+      await ctx.reply(t.admin.panelTitle, {
+        parse_mode: 'Markdown',
+        reply_markup: adminMenuKeyboard(t),
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[admin] ctx.reply failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
   }
 
   // ─── Menu ──────────────────────────────────────────────────────────────────
 
   private async onMenu(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const t = await this.getT(ctx);
     await this.safeEditText(ctx, t.admin.panelTitle, {
       parse_mode: 'Markdown',
@@ -93,7 +99,7 @@ export class AdminUpdate implements OnModuleInit {
   // ─── Users ─────────────────────────────────────────────────────────────────
 
   private async onUsers(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const [, pageStr] = ctx.match as RegExpMatchArray;
     const page = Math.max(1, parseInt(pageStr, 10));
 
@@ -122,7 +128,7 @@ export class AdminUpdate implements OnModuleInit {
   // ─── Statistics ─────────────────────────────────────────────────────────────
 
   private async onStats(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const [stats, t] = await Promise.all([
       this.adminService.getStats(),
       this.getT(ctx),
@@ -147,7 +153,7 @@ export class AdminUpdate implements OnModuleInit {
   // ─── Leaderboard ────────────────────────────────────────────────────────────
 
   private async onLeaderboard(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const [entries, t] = await Promise.all([
       this.adminService.getLeaderboard(20),
       this.getT(ctx),
@@ -175,7 +181,7 @@ export class AdminUpdate implements OnModuleInit {
   // ─── Story approvals ────────────────────────────────────────────────────────
 
   private async onStories(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const [pending, t] = await Promise.all([
       this.storyService.getPendingSubmissions(),
       this.getT(ctx),
@@ -200,16 +206,22 @@ export class AdminUpdate implements OnModuleInit {
       const name =
         s.user.firstName || s.user.telegramUsername || `#${s.userId}`;
       const captionLine = s.caption ? `\n📝 ${s.caption}` : '';
-      await ctx.replyWithPhoto(s.fileId, {
-        caption: a.storyCaption(name, captionLine, s.id),
-        parse_mode: 'Markdown',
-        reply_markup: storyActionKeyboard(s.id, t),
-      });
+      try {
+        await ctx.replyWithPhoto(s.fileId, {
+          caption: a.storyCaption(name, captionLine, s.id),
+          parse_mode: 'Markdown',
+          reply_markup: storyActionKeyboard(s.id, t),
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[admin] replyWithPhoto failed for story ${s.id}: ${err instanceof GrammyError ? err.description : String(err)}`,
+        );
+      }
     }
   }
 
   private async onApprove(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const [, idStr] = ctx.match as RegExpMatchArray;
     const [result, t] = await Promise.all([
       this.storyService.approveSubmission(parseInt(idStr, 10)),
@@ -233,7 +245,7 @@ export class AdminUpdate implements OnModuleInit {
   }
 
   private async onReject(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    await this.safeAnswerCallbackQuery(ctx);
     const [, idStr] = ctx.match as RegExpMatchArray;
     const [result, t] = await Promise.all([
       this.storyService.rejectSubmission(parseInt(idStr, 10)),
@@ -258,6 +270,16 @@ export class AdminUpdate implements OnModuleInit {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
+  private async safeAnswerCallbackQuery(ctx: Context): Promise<void> {
+    try {
+      await ctx.answerCallbackQuery();
+    } catch (err) {
+      this.logger.warn(
+        `[admin] answerCallbackQuery failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
+  }
+
   private async safeEditText(
     ctx: Context,
     text: string,
@@ -266,7 +288,11 @@ export class AdminUpdate implements OnModuleInit {
     try {
       await ctx.editMessageText(text, other);
     } catch (err) {
-      if (!this.isNotModifiedError(err)) throw err;
+      if (!this.isNotModifiedError(err)) {
+        this.logger.warn(
+          `[admin] editMessageText failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+        );
+      }
     }
   }
 
@@ -274,7 +300,11 @@ export class AdminUpdate implements OnModuleInit {
     try {
       await ctx.editMessageCaption({ caption });
     } catch (err) {
-      if (!this.isNotModifiedError(err)) throw err;
+      if (!this.isNotModifiedError(err)) {
+        this.logger.warn(
+          `[admin] editMessageCaption failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+        );
+      }
     }
   }
 

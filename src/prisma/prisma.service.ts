@@ -15,7 +15,13 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    const connectionString = process.env.DATABASE_URL ?? '';
+    // pg-connection-string warns when sslmode=require because newer libpq treats it
+    // as verify-full; use verify-full explicitly to suppress the warning.
+    // Neon uses trusted CA certificates so verify-full works without extra config.
+    const connectionString = (process.env.DATABASE_URL ?? '').replace(
+      'sslmode=require',
+      'sslmode=verify-full',
+    );
     super({ adapter: new PrismaPg({ connectionString }) });
   }
 

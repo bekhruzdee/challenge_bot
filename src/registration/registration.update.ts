@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Language, RegistrationStep } from '@prisma/client';
-import { Bot, Composer, Context, NextFunction } from 'grammy';
+import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { mainMenuKeyboard } from '../main-menu/keyboards/main-menu.keyboard';
@@ -79,7 +79,7 @@ export class RegistrationUpdate implements OnModuleInit {
     );
 
     if (!user.language) {
-      await ctx.reply(LANG_SELECT_PROMPT, {
+      await this.safeReply(ctx, LANG_SELECT_PROMPT, {
         reply_markup: languageKeyboard(),
       });
       return;
@@ -96,7 +96,7 @@ export class RegistrationUpdate implements OnModuleInit {
       RegistrationStep.RULES,
       {},
     );
-    await ctx.reply(t.registration.rules, {
+    await this.safeReply(ctx, t.registration.rules, {
       parse_mode: 'Markdown',
       reply_markup: rulesKeyboard(t),
     });
@@ -105,13 +105,19 @@ export class RegistrationUpdate implements OnModuleInit {
   // ─── "Change language" button ────────────────────────────────────────────────
 
   private async onChangeLang(ctx: Context): Promise<void> {
-    await ctx.reply(LANG_SELECT_PROMPT, { reply_markup: languageKeyboard() });
+    await this.safeReply(ctx, LANG_SELECT_PROMPT, { reply_markup: languageKeyboard() });
   }
 
   // ─── Language selection callback ──────────────────────────────────────────────
 
   private async onLangSelect(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    try {
+      await ctx.answerCallbackQuery();
+    } catch (err) {
+      this.logger.warn(
+        `[registration] answerCallbackQuery failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
 
     const langStr = (ctx.match as RegExpMatchArray)[1] as Language;
 
@@ -133,7 +139,7 @@ export class RegistrationUpdate implements OnModuleInit {
     if (user.registrationCompleted) {
       // Returning user changing language: confirm and redraw keyboard in new language.
       const isAdmin = this.adminIds.has(BigInt(ctx.from!.id));
-      await ctx.reply(t.registration.langChanged, {
+      await this.safeReply(ctx, t.registration.langChanged, {
         reply_markup: mainMenuKeyboard(t, isAdmin),
       });
       return;
@@ -145,7 +151,7 @@ export class RegistrationUpdate implements OnModuleInit {
       RegistrationStep.RULES,
       {},
     );
-    await ctx.reply(t.registration.rules, {
+    await this.safeReply(ctx, t.registration.rules, {
       parse_mode: 'Markdown',
       reply_markup: rulesKeyboard(t),
     });
@@ -170,7 +176,13 @@ export class RegistrationUpdate implements OnModuleInit {
   // ─── Inline button: "Boshlash / Начать" ─────────────────────────────────────
 
   private async onStartButton(ctx: Context): Promise<void> {
-    await ctx.answerCallbackQuery();
+    try {
+      await ctx.answerCallbackQuery();
+    } catch (err) {
+      this.logger.warn(
+        `[registration] answerCallbackQuery failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
 
     const user = await this.registrationService.getUserByTelegramId(
       BigInt(ctx.from!.id),
@@ -187,7 +199,13 @@ export class RegistrationUpdate implements OnModuleInit {
       BigInt(ctx.from!.id),
     );
     const t = this.i18n.t(user?.language);
-    await ctx.answerCallbackQuery({ text: t.registration.checkingAnswer });
+    try {
+      await ctx.answerCallbackQuery({ text: t.registration.checkingAnswer });
+    } catch (err) {
+      this.logger.warn(
+        `[registration] answerCallbackQuery failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
 
     if (!user) return;
     await this.handleSubscriptionCheck(ctx, user.id, user.language, user.registrationCompleted);
@@ -211,7 +229,7 @@ export class RegistrationUpdate implements OnModuleInit {
           reply_markup: notSubscribedKeyboard(t, channelLink),
         });
       } catch {
-        await ctx.reply(t.registration.notSubscribed, {
+        await this.safeReply(ctx, t.registration.notSubscribed, {
           reply_markup: notSubscribedKeyboard(t, channelLink),
         });
       }
@@ -241,7 +259,7 @@ export class RegistrationUpdate implements OnModuleInit {
       RegistrationStep.ASK_FIRST_NAME,
       {},
     );
-    await ctx.reply(t.registration.askFirstName);
+    await this.safeReply(ctx, t.registration.askFirstName);
   }
 
   // ─── Text messages (FSM dispatch) ───────────────────────────────────────────
@@ -273,7 +291,7 @@ export class RegistrationUpdate implements OnModuleInit {
           RegistrationStep.ASK_LAST_NAME,
           { firstName: text },
         );
-        await ctx.reply(t.registration.askLastName);
+        await this.safeReply(ctx, t.registration.askLastName);
         break;
 
       case RegistrationStep.ASK_LAST_NAME:
@@ -282,13 +300,13 @@ export class RegistrationUpdate implements OnModuleInit {
           RegistrationStep.ASK_PHONE,
           { ...saved, lastName: text },
         );
-        await ctx.reply(t.registration.askPhone, {
+        await this.safeReply(ctx, t.registration.askPhone, {
           reply_markup: contactKeyboard(t),
         });
         break;
 
       case RegistrationStep.ASK_PHONE:
-        await ctx.reply(t.registration.wrongPhoneBtn, {
+        await this.safeReply(ctx, t.registration.wrongPhoneBtn, {
           reply_markup: contactKeyboard(t),
         });
         break;
@@ -296,7 +314,7 @@ export class RegistrationUpdate implements OnModuleInit {
       case RegistrationStep.ASK_REGION: {
         const canonical = this.i18n.resolveRegion(text);
         if (!canonical) {
-          await ctx.reply(t.registration.wrongRegion, {
+          await this.safeReply(ctx, t.registration.wrongRegion, {
             reply_markup: regionKeyboard(t),
           });
           return;
@@ -327,7 +345,7 @@ export class RegistrationUpdate implements OnModuleInit {
     const t = this.i18n.t(user.language);
     const contact = ctx.msg!.contact!;
     if (contact.user_id !== ctx.from!.id) {
-      await ctx.reply(t.registration.wrongPhone, {
+      await this.safeReply(ctx, t.registration.wrongPhone, {
         reply_markup: contactKeyboard(t),
       });
       return;
@@ -339,7 +357,7 @@ export class RegistrationUpdate implements OnModuleInit {
       RegistrationStep.ASK_REGION,
       { ...saved, phone: contact.phone_number },
     );
-    await ctx.reply(t.registration.askRegion, {
+    await this.safeReply(ctx, t.registration.askRegion, {
       reply_markup: regionKeyboard(t),
     });
   }
@@ -365,11 +383,24 @@ export class RegistrationUpdate implements OnModuleInit {
   ): Promise<void> {
     const isAdmin = this.adminIds.has(BigInt(ctx.from!.id));
     const t = this.i18n.t(lang);
-    await ctx.reply(t.registration.success, {
+    await this.safeReply(ctx, t.registration.success, {
       reply_markup: mainMenuKeyboard(t, isAdmin),
     });
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+  private async safeReply(
+    ctx: Context,
+    text: string,
+    other?: Parameters<Context['reply']>[1],
+  ): Promise<void> {
+    try {
+      await ctx.reply(text, other);
+    } catch (err) {
+      this.logger.warn(
+        `[registration] ctx.reply failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
+  }
 }

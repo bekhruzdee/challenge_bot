@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { TelegramService } from './telegram/telegram.service';
+import { WebhookExceptionFilter } from './common/filters/webhook-exception.filter';
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -14,6 +15,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
 
+  app.useGlobalFilters(new WebhookExceptionFilter());
   app.enableShutdownHooks();
 
   // In webhook mode, register the Express route before the server starts so
