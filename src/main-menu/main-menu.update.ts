@@ -146,11 +146,6 @@ export class MainMenuUpdate implements OnModuleInit {
           { parse_mode: 'Markdown' },
         );
       }
-      if (result.wasGapReset) {
-        await this.safeReply(ctx, t.mainMenu.trackingGapReset, {
-          parse_mode: 'Markdown',
-        });
-      }
       // Always acknowledge a new session with current progress, even when this
       // particular update was filtered (user restarted from the same spot, or
       // the fix had poor accuracy).
@@ -192,11 +187,6 @@ export class MainMenuUpdate implements OnModuleInit {
           t.mainMenu.speedTooFastWarning(result.speedKmh!.toFixed(1)),
           { parse_mode: 'Markdown' },
         );
-      }
-      if (result.wasGapReset) {
-        await this.safeReply(ctx, t.mainMenu.trackingGapReset, {
-          parse_mode: 'Markdown',
-        });
       }
       return;
     }

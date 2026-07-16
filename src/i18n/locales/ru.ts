@@ -108,8 +108,6 @@ export const ru = {
     referralNoBotUsername: '(BOT_USERNAME не установлен в .env)',
     speedTooFastWarning: (speedKmh: string) =>
       `⚠️ Вы движетесь со скоростью ${speedKmh} км/ч. Движение с такой скоростью не засчитывается как шаги — пожалуйста, идите пешком.`,
-    trackingGapReset:
-      '🔄 Отслеживание возобновлено. Расстояние во время паузы не было засчитано.',
   },
 
   story: {
