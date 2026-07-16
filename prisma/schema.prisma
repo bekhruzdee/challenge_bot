@@ -67,12 +67,13 @@ model UserSession {
 }
 
 model Location {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  latitude   Float
-  longitude  Float
-  recordedAt DateTime @default(now())
+  id                 Int      @id @default(autoincrement())
+  userId             Int
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latitude           Float
+  longitude          Float
+  horizontalAccuracy Float?
+  recordedAt         DateTime @default(now())
 
   @@index([userId, recordedAt(sort: Desc)])
   @@map("locations")

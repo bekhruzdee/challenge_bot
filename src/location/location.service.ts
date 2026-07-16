@@ -7,7 +7,8 @@ import { haversineMeters } from './utils/haversine';
 const STEP_LENGTH_M = 0.75;
 const DAILY_GOAL_STEPS = 10_000;
 const GOAL_BONUS_POINTS = 100;
-const MIN_DISTANCE_M = 20;
+const MIN_DISTANCE_M_FLOOR = 10;   // hard minimum regardless of GPS accuracy
+const MIN_DISTANCE_M_DEFAULT = 20; // assumed per-point radius when horizontalAccuracy is absent
 const MAX_SPEED_KMH = 10;
 const MAX_HORIZONTAL_ACCURACY_M = 20;
 const MIN_INTERVAL_MS = 30_000; // 30 seconds
@@ -109,7 +110,7 @@ export class LocationService {
     // distance can accumulate naturally on the next update.
     if (!lastLocation) {
       await this.prisma.location.create({
-        data: { userId, latitude, longitude },
+        data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
       });
       this.logger.debug(
         `[location] userId=${userId} — first point saved, tracking initialised`,
@@ -153,16 +154,25 @@ export class LocationService {
         `[location] userId=${userId} elapsedMs=${elapsedMs} — gap reset (tracking interrupted)`,
       );
       await this.prisma.location.create({
-        data: { userId, latitude, longitude },
+        data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
       });
       return this.gapResetResult();
     }
 
-    // Reject movement below minimum threshold (GPS noise).
+    // Reject movement below the accuracy-adjusted minimum distance (GPS noise).
+    // The threshold is the sum of both fix radii, floored at MIN_DISTANCE_M_FLOOR.
+    // Good GPS (±5m each) → floor of 10m; weak GPS (±18m each) → 36m required.
+    // When accuracy is absent, MAX_HORIZONTAL_ACCURACY_M (20m) is assumed per point.
     // Not saved — keeping the anchor fixed lets distance accumulate to the threshold.
-    // Saving here would drift the anchor with every small GPS fluctuation, so slow
-    // walkers (< ~2.4 km/h at 30s update intervals) would never reach MIN_DISTANCE_M.
-    if (distanceM < MIN_DISTANCE_M) {
+    const dynamicMinDistance = Math.max(
+      MIN_DISTANCE_M_FLOOR,
+      (lastLocation.horizontalAccuracy ?? MAX_HORIZONTAL_ACCURACY_M) +
+        (horizontalAccuracy ?? MAX_HORIZONTAL_ACCURACY_M),
+    );
+    if (distanceM < dynamicMinDistance) {
+      this.logger.debug(
+        `[location] userId=${userId} distanceM=${distanceM.toFixed(1)} minRequired=${dynamicMinDistance.toFixed(1)} — filtered (too close)`,
+      );
       return this.filteredResult('too_close');
     }
 
@@ -176,7 +186,7 @@ export class LocationService {
         `[location] userId=${userId} speed=${speedKmh.toFixed(1)} km/h — filtered`,
       );
       await this.prisma.location.create({
-        data: { userId, latitude, longitude },
+        data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
       });
       // Throttled speed warning: at most once per SPEED_WARNING_INTERVAL_MS.
       const progress = await this.getOrCreateProgress(userId, today);
@@ -206,7 +216,7 @@ export class LocationService {
 
     // All checks passed — persist this point as the anchor for the next update.
     await this.prisma.location.create({
-      data: { userId, latitude, longitude },
+      data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
     });
 
     const newMeters = progress.totalMeters + distanceM;
