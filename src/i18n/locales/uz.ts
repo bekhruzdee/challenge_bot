@@ -110,6 +110,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
     referralNoBotUsername: "(BOT_USERNAME .env faylida o'rnatilmagan)",
     speedTooFastWarning: (speedKmh: string) =>
       `⚠️ Siz ${speedKmh} km/soat tezlikda harakatlanmoqdasiz. Bu tezlikdagi harakat qadam sifatida hisoblanmaydi — iltimos, piyoda yuring.`,
+    trackingGapReset:
+      "🔄 Kuzatuv qayta boshlandi. Uzilish davomidagi masofa hisobga olinmadi.",
   },
 
   story: {

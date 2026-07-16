@@ -11,6 +11,7 @@ const MIN_DISTANCE_M = 20;
 const MAX_SPEED_KMH = 10;
 const MAX_HORIZONTAL_ACCURACY_M = 20;
 const MIN_INTERVAL_MS = 30_000; // 30 seconds
+const MAX_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes — gap beyond this means tracking was interrupted
 const DAILY_STEP_CAP = 40_000;
 const NOTIFY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const SPEED_WARNING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -20,6 +21,7 @@ export type FilterReason =
   | 'poor_accuracy'
   | 'clock_skew'
   | 'too_soon'
+  | 'tracking_gap'
   | 'too_close'
   | 'too_fast'
   | 'daily_cap';
@@ -38,6 +40,8 @@ export interface LocationResult {
   speedKmh?: number;
   /** Whether a throttled speed-warning message should be sent. */
   shouldWarnSpeed?: boolean;
+  /** True when this update was discarded due to a tracking gap (app paused/closed). */
+  wasGapReset?: boolean;
 }
 
 @Injectable()
@@ -135,6 +139,17 @@ export class LocationService {
         `[location] userId=${userId} elapsedMs=${elapsedMs} — filtered (too soon)`,
       );
       return this.filteredResult('too_soon');
+    }
+
+    // Tracking gap: elapsed time exceeds MAX_INTERVAL_MS, meaning the app was closed
+    // or live-location sharing was paused. We have no proof of continuous movement
+    // across the gap, so we do not credit distance regardless of the average speed.
+    // The persisted point (step 2) becomes the fresh anchor for future updates.
+    if (elapsedMs > MAX_INTERVAL_MS) {
+      this.logger.debug(
+        `[location] userId=${userId} elapsedMs=${elapsedMs} — gap reset (tracking interrupted)`,
+      );
+      return this.gapResetResult();
     }
 
     // Reject movement below minimum threshold (GPS noise, user has not meaningfully moved).
@@ -255,6 +270,22 @@ export class LocationService {
       filterReason: reason,
       speedKmh,
       shouldWarnSpeed,
+    };
+  }
+
+  /** Silent result when a tracking gap is detected — no steps credited, point becomes new anchor. */
+  private gapResetResult(): LocationResult {
+    return {
+      isFirstLocation: false,
+      wasFiltered: true,
+      totalSteps: 0,
+      totalMeters: 0,
+      remainingSteps: DAILY_GOAL_STEPS,
+      goalJustReached: false,
+      alreadyReachedGoal: false,
+      shouldNotify: false,
+      filterReason: 'tracking_gap',
+      wasGapReset: true,
     };
   }
 
