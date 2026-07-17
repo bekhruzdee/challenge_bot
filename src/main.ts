@@ -28,7 +28,8 @@ async function bootstrap() {
     app
       .getHttpAdapter()
       .getInstance()
-      .post(path, telegramService.getWebhookCallback());
+      // onApplicationBootstrap (called by app.init() above) sets webhookCb before this line.
+      .post(path, telegramService.getWebhookCallback()!);
     logger.log(`Webhook route registered at ${path}`);
   }
 

@@ -15,7 +15,7 @@ export class TelegramService
   private readonly logger = new Logger(TelegramService.name);
   private readonly bot: Bot;
   private readonly mode: 'polling' | 'webhook';
-  private readonly webhookCb: RequestHandler;
+  private webhookCb: RequestHandler | undefined;
 
   // constructor(private readonly configService: ConfigService) {
   //   const token = this.configService.get<string>('BOT_TOKEN');
@@ -65,11 +65,6 @@ export class TelegramService
         ? 'webhook'
         : 'polling';
 
-    const secret = this.configService.get<string>('WEBHOOK_SECRET_TOKEN');
-    this.webhookCb = webhookCallback(this.bot, 'express', {
-      secretToken: secret || undefined,
-    }) as RequestHandler;
-
     this.bot.catch((err) => {
       const e = err.error;
       if (e instanceof GrammyError) {
@@ -98,6 +93,10 @@ export class TelegramService
       }
       const url = `${domain}${path}`;
       await this.bot.api.setWebhook(url, { drop_pending_updates: true });
+      const secret = this.configService.get<string>('WEBHOOK_SECRET_TOKEN');
+      this.webhookCb = webhookCallback(this.bot, 'express', {
+        secretToken: secret || undefined,
+      }) as RequestHandler;
       this.logger.log(`Bot running in webhook mode, webhook registered at ${url}`);
     } else {
       // Clear any previously registered webhook before starting long polling.
@@ -125,7 +124,7 @@ export class TelegramService
     return this.bot;
   }
 
-  getWebhookCallback(): RequestHandler {
+  getWebhookCallback(): RequestHandler | undefined {
     return this.webhookCb;
   }
 }
