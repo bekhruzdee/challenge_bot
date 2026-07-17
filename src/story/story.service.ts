@@ -12,7 +12,8 @@ export interface StoryActionResult {
   userLanguage?: Language | null;
 }
 
-const STORY_BONUS_POINTS = 15;
+const STORY_FIRST_BONUS = 15;
+const STORY_REPEAT_BONUS = 5;
 
 @Injectable()
 export class StoryService {
@@ -69,15 +70,13 @@ export class StoryService {
         },
       });
 
-      // Defense in depth: storyBonusGiven guards against a second award should
-      // the user somehow have had a prior approval on a different submission.
-      if (submission && !submission.user.storyBonusGiven) {
+      if (submission) {
+        const bonus = submission.user.storyBonusGiven
+          ? STORY_REPEAT_BONUS
+          : STORY_FIRST_BONUS;
         await tx.user.update({
           where: { id: submission.userId },
-          data: {
-            points: { increment: STORY_BONUS_POINTS },
-            storyBonusGiven: true,
-          },
+          data: { points: { increment: bonus }, storyBonusGiven: true },
         });
       }
 
@@ -108,6 +107,13 @@ export class StoryService {
         userTelegramId: submission?.user.telegramId,
         userLanguage: submission?.user.language,
       };
+    });
+  }
+
+  getLastSubmission(userId: number): Promise<StorySubmission | null> {
+    return this.prisma.storySubmission.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

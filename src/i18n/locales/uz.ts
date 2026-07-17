@@ -132,6 +132,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
     submitted:
       '✅ *Storisingiz yuborildi!*\n\n' +
       "Admin ko'rib chiqqandan so'ng sizga *+15 ball* beriladi.",
+    cooldown: (hours: number) =>
+      `⏳ Keyingi storyni yuborish uchun ${hours} soat kutishingiz kerak.`,
   },
 
   admin: {

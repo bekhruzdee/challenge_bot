@@ -92,6 +92,7 @@ export interface Translations {
     alreadyBonused: string;
     pending: string;
     submitted: string;
+    cooldown: (hours: number) => string;
   };
 
   admin: {

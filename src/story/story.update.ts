@@ -69,9 +69,15 @@ export class StoryUpdate implements OnModuleInit {
 
     const t = this.i18n.t(user.language);
 
-    if (user.storyBonusGiven) {
-      await this.safeReply(ctx, t.story.alreadyBonused);
-      return;
+    const last = await this.storyService.getLastSubmission(user.id);
+    if (last) {
+      const remaining =
+        24 * 60 * 60 * 1000 - (Date.now() - last.createdAt.getTime());
+      if (remaining > 0) {
+        const hoursLeft = Math.ceil(remaining / (60 * 60 * 1000));
+        await this.safeReply(ctx, t.story.cooldown(hoursLeft));
+        return;
+      }
     }
 
     const hasPending = await this.storyService.hasPendingSubmission(user.id);
