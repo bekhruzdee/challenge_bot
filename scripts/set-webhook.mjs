@@ -41,6 +41,13 @@
 
 console.log('[set-webhook] ===== Script started =====');
 
+const botMode = process.env.BOT_MODE ?? 'polling';
+if (botMode !== 'webhook') {
+  console.log(`[set-webhook] BOT_MODE is "${botMode}", not "webhook" — skipping`);
+  console.log('[set-webhook] ===== Script finished =====');
+  process.exit(0);
+}
+
 const token = process.env.BOT_TOKEN;
 const domain = process.env.WEBHOOK_DOMAIN;
 const path = process.env.WEBHOOK_PATH ?? '/webhook';

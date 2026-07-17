@@ -87,10 +87,22 @@ export class TelegramService
 
   async onApplicationBootstrap(): Promise<void> {
     if (this.mode === 'webhook') {
-      // Webhook URL is registered by scripts/set-webhook.mjs at deploy time.
-      // Nothing to do on cold start.
-      this.logger.log('Bot running in webhook mode');
+      const domain = this.configService.get<string>('WEBHOOK_DOMAIN');
+      const path =
+        this.configService.get<string>('WEBHOOK_PATH') ?? '/webhook';
+      if (!domain) {
+        this.logger.error(
+          'WEBHOOK_DOMAIN is not set — cannot register webhook',
+        );
+        return;
+      }
+      const url = `${domain}${path}`;
+      await this.bot.api.setWebhook(url, { drop_pending_updates: true });
+      this.logger.log(`Bot running in webhook mode, webhook registered at ${url}`);
     } else {
+      // Clear any previously registered webhook before starting long polling.
+      // grammy refuses to call bot.start() when Telegram reports an active webhook URL.
+      await this.bot.api.deleteWebhook();
       void this.bot.start({
         drop_pending_updates: true,
         onStart: (info) =>
