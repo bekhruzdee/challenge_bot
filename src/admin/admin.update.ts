@@ -346,6 +346,11 @@ export class AdminUpdate implements OnModuleInit {
         result.userTelegramId,
         userT.registration.instagramApproved,
       );
+      await this.notifyUser(
+        ctx,
+        result.userTelegramId,
+        userT.registration.askFirstName,
+      );
       if (result.userId) {
         await this.registrationService.upsertSession(
           result.userId,
