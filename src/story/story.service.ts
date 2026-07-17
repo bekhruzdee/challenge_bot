@@ -23,9 +23,10 @@ export class StoryService {
     userId: number,
     fileId: string,
     caption?: string,
+    mediaType?: string,
   ): Promise<StorySubmission> {
     return this.prisma.storySubmission.create({
-      data: { userId, fileId, caption },
+      data: { userId, fileId, caption, mediaType },
     });
   }
 

@@ -94,6 +94,7 @@ model StorySubmission {
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   fileId    String
   caption   String?
+  mediaType String?
   status    StoryStatus @default(PENDING)
   createdAt DateTime    @default(now())
 

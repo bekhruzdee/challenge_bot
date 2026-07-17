@@ -235,15 +235,24 @@ export class AdminUpdate implements OnModuleInit {
       const name =
         s.user.firstName || s.user.telegramUsername || `#${s.userId}`;
       const captionLine = s.caption ? `\n📝 ${s.caption}` : '';
+      const captionText = a.storyCaption(name, captionLine, s.id);
       try {
-        await ctx.replyWithPhoto(s.fileId, {
-          caption: a.storyCaption(name, captionLine, s.id),
-          parse_mode: 'Markdown',
-          reply_markup: storyActionKeyboard(s.id, t),
-        });
+        if (s.mediaType === 'video_note') {
+          await ctx.api.sendVideoNote(ctx.chat!.id, s.fileId);
+          await ctx.reply(captionText, {
+            parse_mode: 'Markdown',
+            reply_markup: storyActionKeyboard(s.id, t),
+          });
+        } else {
+          await ctx.replyWithPhoto(s.fileId, {
+            caption: captionText,
+            parse_mode: 'Markdown',
+            reply_markup: storyActionKeyboard(s.id, t),
+          });
+        }
       } catch (err) {
         this.logger.warn(
-          `[admin] replyWithPhoto failed for story ${s.id}: ${err instanceof GrammyError ? err.description : String(err)}`,
+          `[admin] send failed for story ${s.id}: ${err instanceof GrammyError ? err.description : String(err)}`,
         );
       }
     }
@@ -512,6 +521,8 @@ export class AdminUpdate implements OnModuleInit {
             caption: msg.caption,
             caption_entities: msg.caption_entities,
           });
+        } else if (msg.video_note) {
+          await ctx.api.sendVideoNote(chatId, msg.video_note.file_id);
         }
         sent++;
       } catch (err) {
@@ -565,10 +576,16 @@ export class AdminUpdate implements OnModuleInit {
     try {
       await ctx.editMessageCaption({ caption });
     } catch (err) {
-      if (!this.isNotModifiedError(err)) {
-        this.logger.warn(
-          `[admin] editMessageCaption failed: ${err instanceof GrammyError ? err.description : String(err)}`,
-        );
+      if (this.isNotModifiedError(err)) return;
+      // For video_note submissions the keyboard sits on a text message — fall back.
+      try {
+        await ctx.editMessageText(caption);
+      } catch (err2) {
+        if (!this.isNotModifiedError(err2)) {
+          this.logger.warn(
+            `[admin] editMessageCaption/Text failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+          );
+        }
       }
     }
   }
