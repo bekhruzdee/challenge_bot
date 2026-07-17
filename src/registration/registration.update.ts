@@ -97,15 +97,39 @@ export class RegistrationUpdate implements OnModuleInit {
     }
 
     const t = this.i18n.t(user.language);
-    await this.registrationService.upsertSession(
-      user.id,
-      RegistrationStep.RULES,
-      {},
-    );
-    await this.safeReply(ctx, t.registration.rules, {
-      parse_mode: 'Markdown',
-      reply_markup: rulesKeyboard(t),
-    });
+    const session = await this.registrationService.getSession(user.id);
+
+    // If the user is mid-registration (past the subscription gates), resume
+    // from their current step instead of resetting back to the rules screen.
+    switch (session?.step) {
+      case RegistrationStep.ASK_FIRST_NAME:
+        await this.safeReply(ctx, t.registration.askFirstName);
+        return;
+      case RegistrationStep.ASK_LAST_NAME:
+        await this.safeReply(ctx, t.registration.askLastName);
+        return;
+      case RegistrationStep.ASK_PHONE:
+        await this.safeReply(ctx, t.registration.askPhone, {
+          reply_markup: contactKeyboard(t),
+        });
+        return;
+      case RegistrationStep.ASK_REGION:
+        await this.safeReply(ctx, t.registration.askRegion, {
+          reply_markup: regionKeyboard(t),
+        });
+        return;
+      default:
+        // RULES, CHECKING_SUB, INSTAGRAM_SUB, WAITING_INSTAGRAM_APPROVAL, or no session yet.
+        await this.registrationService.upsertSession(
+          user.id,
+          RegistrationStep.RULES,
+          {},
+        );
+        await this.safeReply(ctx, t.registration.rules, {
+          parse_mode: 'Markdown',
+          reply_markup: rulesKeyboard(t),
+        });
+    }
   }
 
   // ─── "Change language" button ────────────────────────────────────────────────
