@@ -8,4 +8,7 @@ export const ADMIN_CB = {
   STORIES: 'admin:stories',
   APPROVE: /^admin:approve:(\d+)$/,
   REJECT: /^admin:reject:(\d+)$/,
+  INSTAGRAM: 'admin:instagram',
+  INSTAGRAM_APPROVE: /^admin:ig_approve:(\d+)$/,
+  INSTAGRAM_REJECT: /^admin:ig_reject:(\d+)$/,
 } as const;

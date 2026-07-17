@@ -26,6 +26,12 @@ export interface Translations {
     checkBtn: string;
     checkingAnswer: string;
     notSubscribed: string;
+    instagramPrompt: string;
+    instagramBtn: string;
+    instagramPending: string;
+    instagramPhotoReceived: string;
+    instagramApproved: string;
+    instagramRejected: string;
     contactBtn: string;
     askFirstName: string;
     askLastName: string;
@@ -94,6 +100,7 @@ export interface Translations {
     statsBtn: string;
     leaderboardBtn: string;
     storiesBtn: string;
+    instagramBtn: string;
     backBtn: string;
     prevBtn: string;
     nextBtn: string;
@@ -115,6 +122,12 @@ export interface Translations {
     storiesEmpty: string;
     storiesPending: (n: number) => string;
     storyCaption: (name: string, captionLine: string, id: number) => string;
+    instagramTitle: string;
+    instagramEmpty: string;
+    instagramPendingCount: (n: number) => string;
+    instagramCaption: (name: string, id: number) => string;
+    instagramApproveSuccess: string;
+    instagramRejectSuccess: string;
     alreadyProcessed: string;
     approveSuccess: string;
     rejectSuccess: string;

@@ -26,6 +26,7 @@ services:
       CHANNEL_ID: ${CHANNEL_ID}
       CHANNEL_LINK: ${CHANNEL_LINK}
       BOT_USERNAME: ${BOT_USERNAME}
+      INSTAGRAM_LINK: ${INSTAGRAM_LINK:-https://www.instagram.com/atlet.uz/}
       BOT_MODE: ${BOT_MODE:-polling}
       PORT: ${PORT:-3000}
       NODE_ENV: production

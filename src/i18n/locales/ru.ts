@@ -21,6 +21,15 @@ export const ru = {
     checkingAnswer: 'Проверяем...',
     notSubscribed:
       '❌ Вы ещё не подписаны на канал.\n\nПерейдите на канал, подпишитесь и нажмите «Проверить ✅».',
+    instagramPrompt:
+      '📸 Подпишитесь на наш Instagram и отправьте скриншот подписки',
+    instagramBtn: '📸 Перейти в Instagram',
+    instagramPending: '⏳ Скриншот проверяется администратором, подождите...',
+    instagramPhotoReceived: '⏳ Скриншот принят! Ожидайте подтверждения администратора...',
+    instagramApproved:
+      '✅ Ваша подписка на Instagram подтверждена! Теперь вы можете пройти регистрацию.',
+    instagramRejected:
+      '❌ Ваша подписка на Instagram не подтверждена. Пожалуйста, отправьте правильный скриншот 📸',
     contactBtn: '📱 Отправить номер телефона',
     askFirstName: '👤 Введите ваше имя:',
     askLastName: '👤 Введите вашу фамилию:',
@@ -129,6 +138,7 @@ export const ru = {
     statsBtn: '📊 Статистика',
     leaderboardBtn: '🏆 Рейтинг',
     storiesBtn: '📸 Проверка историй',
+    instagramBtn: '📸 Instagram подписки',
     backBtn: '🔙 Назад',
     prevBtn: '◀️ Предыдущая',
     nextBtn: 'Следующая ▶️',
@@ -157,6 +167,13 @@ export const ru = {
     storiesPending: (n: number) => `${n} историй ожидают:`,
     storyCaption: (name: string, captionLine: string, id: number) =>
       `👤 *${name}*${captionLine}\n🆔 История #${id}`,
+    instagramTitle: '📸 *Instagram подписки*',
+    instagramEmpty: 'Ожидающих заявок нет ✅',
+    instagramPendingCount: (n: number) => `📸 ${n} заявок ожидают:`,
+    instagramCaption: (name: string, id: number) =>
+      `👤 *${name}*\n🆔 Заявка #${id}\nСтатус: ⏳ Ожидает`,
+    instagramApproveSuccess: '✅ Подтверждено',
+    instagramRejectSuccess: '❌ Отклонено',
     alreadyProcessed: '⚠️ Эта история уже была проверена.',
     approveSuccess:
       '✅ История подтверждена. Пользователю начислено +15 очков.',

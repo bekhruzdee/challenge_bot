@@ -21,34 +21,43 @@ enum StoryStatus {
 enum RegistrationStep {
   RULES
   CHECKING_SUB
+  INSTAGRAM_SUB
+  WAITING_INSTAGRAM_APPROVAL
   ASK_FIRST_NAME
   ASK_LAST_NAME
   ASK_PHONE
   ASK_REGION
 }
 
+enum InstagramStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id                    Int           @id @default(autoincrement())
-  telegramId            BigInt        @unique
+  id                    Int                    @id @default(autoincrement())
+  telegramId            BigInt                 @unique
   telegramUsername      String?
   firstName             String?
   lastName              String?
   phone                 String?
   region                String?
-  points                Int           @default(0)
-  isActive              Boolean       @default(true)
-  registrationCompleted Boolean       @default(false)
-  storyBonusGiven       Boolean       @default(false)
+  points                Int                    @default(0)
+  isActive              Boolean                @default(true)
+  registrationCompleted Boolean                @default(false)
+  storyBonusGiven       Boolean                @default(false)
   language              Language?
   stories               StorySubmission[]
+  instagramVerification InstagramVerification?
   referrerId            Int?
-  referrer              User?         @relation("UserReferrals", fields: [referrerId], references: [id])
-  referrals             User[]        @relation("UserReferrals")
+  referrer              User?                  @relation("UserReferrals", fields: [referrerId], references: [id])
+  referrals             User[]                 @relation("UserReferrals")
   session               UserSession?
   locations             Location[]
   progress              Progress[]
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   lastActivityAt        DateTime?
 
   @@index([referrerId])
@@ -91,6 +100,18 @@ model StorySubmission {
   @@index([userId])
   @@index([status])
   @@map("story_submissions")
+}
+
+model InstagramVerification {
+  id        Int             @id @default(autoincrement())
+  userId    Int             @unique
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileId    String
+  status    InstagramStatus @default(PENDING)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@map("instagram_verifications")
 }
 
 model BotChat {

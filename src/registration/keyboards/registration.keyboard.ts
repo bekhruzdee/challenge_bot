@@ -14,11 +14,20 @@ export function rulesKeyboard(t: Translations): InlineKeyboard {
 export function notSubscribedKeyboard(
   t: Translations,
   channelLink: string,
+  instagramLink?: string,
 ): InlineKeyboard {
-  return new InlineKeyboard()
-    .url(t.registration.subscribeBtn, channelLink)
-    .row()
-    .text(t.registration.checkBtn, 'reg:check_sub');
+  const kb = new InlineKeyboard().url(t.registration.subscribeBtn, channelLink);
+  if (instagramLink) {
+    kb.row().url(t.registration.instagramBtn, instagramLink);
+  }
+  return kb.row().text(t.registration.checkBtn, 'reg:check_sub');
+}
+
+export function instagramPromptKeyboard(
+  t: Translations,
+  instagramLink: string,
+): InlineKeyboard {
+  return new InlineKeyboard().url(t.registration.instagramBtn, instagramLink);
 }
 
 export function contactKeyboard(t: Translations): Keyboard {

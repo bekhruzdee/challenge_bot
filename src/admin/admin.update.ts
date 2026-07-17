@@ -1,15 +1,19 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { RegistrationStep } from '@prisma/client';
 import { Bot, Composer, Context, GrammyError } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { Translations } from '../i18n/types/translations.interface';
 import { UsersService } from '../users/users.service';
 import { StoryService } from '../story/story.service';
+import { InstagramService } from '../instagram/instagram.service';
+import { RegistrationService } from '../registration/registration.service';
 import { AdminService } from './admin.service';
 import { ADMIN_CB } from './admin.constants';
 import {
   adminMenuKeyboard,
   backKeyboard,
+  instagramActionKeyboard,
   storyActionKeyboard,
   usersPageKeyboard,
 } from './keyboards/admin.keyboard';
@@ -24,6 +28,8 @@ export class AdminUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly adminService: AdminService,
     private readonly storyService: StoryService,
+    private readonly instagramService: InstagramService,
+    private readonly registrationService: RegistrationService,
     private readonly usersService: UsersService,
     private readonly i18n: I18nService,
   ) {}
@@ -54,6 +60,13 @@ export class AdminUpdate implements OnModuleInit {
     composer.callbackQuery(ADMIN_CB.STORIES, (ctx) => this.onStories(ctx));
     composer.callbackQuery(ADMIN_CB.APPROVE, (ctx) => this.onApprove(ctx));
     composer.callbackQuery(ADMIN_CB.REJECT, (ctx) => this.onReject(ctx));
+    composer.callbackQuery(ADMIN_CB.INSTAGRAM, (ctx) => this.onInstagram(ctx));
+    composer.callbackQuery(ADMIN_CB.INSTAGRAM_APPROVE, (ctx) =>
+      this.onInstagramApprove(ctx),
+    );
+    composer.callbackQuery(ADMIN_CB.INSTAGRAM_REJECT, (ctx) =>
+      this.onInstagramReject(ctx),
+    );
 
     this.bot.use(composer);
     this.logger.log('Admin handlers registered');
@@ -265,6 +278,114 @@ export class AdminUpdate implements OnModuleInit {
         result.userTelegramId,
         userT.admin.userRejected,
       );
+    }
+  }
+
+  // ─── Instagram approvals ────────────────────────────────────────────────────
+
+  private async onInstagram(ctx: Context): Promise<void> {
+    await this.safeAnswerCallbackQuery(ctx);
+    const [pending, t] = await Promise.all([
+      this.instagramService.getPendingVerifications(),
+      this.getT(ctx),
+    ]);
+    const a = t.admin;
+
+    if (pending.length === 0) {
+      await this.safeEditText(
+        ctx,
+        `${a.instagramTitle}\n\n${a.instagramEmpty}`,
+        { parse_mode: 'Markdown', reply_markup: backKeyboard(t) },
+      );
+      return;
+    }
+
+    await this.safeEditText(
+      ctx,
+      `${a.instagramTitle}\n\n${a.instagramPendingCount(pending.length)}`,
+      { parse_mode: 'Markdown', reply_markup: backKeyboard(t) },
+    );
+
+    for (const v of pending) {
+      const name =
+        v.user.firstName || v.user.telegramUsername || `#${v.userId}`;
+      try {
+        await ctx.replyWithPhoto(v.fileId, {
+          caption: a.instagramCaption(name, v.id),
+          parse_mode: 'Markdown',
+          reply_markup: instagramActionKeyboard(v.id, t),
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[admin] replyWithPhoto failed for instagram verification ${v.id}: ${err instanceof GrammyError ? err.description : String(err)}`,
+        );
+      }
+    }
+  }
+
+  private async onInstagramApprove(ctx: Context): Promise<void> {
+    await this.safeAnswerCallbackQuery(ctx);
+    const [, idStr] = ctx.match as RegExpMatchArray;
+    const id = parseInt(idStr, 10);
+
+    const [result, t] = await Promise.all([
+      this.instagramService.approveVerification(id),
+      this.getT(ctx),
+    ]);
+    const a = t.admin;
+
+    await this.safeEditCaption(
+      ctx,
+      result.alreadyProcessed ? a.alreadyProcessed : a.instagramApproveSuccess,
+    );
+
+    if (!result.alreadyProcessed && result.userTelegramId) {
+      const userT = this.i18n.t(result.userLanguage);
+      await this.notifyUser(
+        ctx,
+        result.userTelegramId,
+        userT.registration.instagramApproved,
+      );
+      if (result.userId) {
+        await this.registrationService.upsertSession(
+          result.userId,
+          RegistrationStep.ASK_FIRST_NAME,
+          {},
+        );
+      }
+    }
+  }
+
+  private async onInstagramReject(ctx: Context): Promise<void> {
+    await this.safeAnswerCallbackQuery(ctx);
+    const [, idStr] = ctx.match as RegExpMatchArray;
+    const id = parseInt(idStr, 10);
+
+    const [result, t] = await Promise.all([
+      this.instagramService.rejectVerification(id),
+      this.getT(ctx),
+    ]);
+    const a = t.admin;
+
+    await this.safeEditCaption(
+      ctx,
+      result.alreadyProcessed ? a.alreadyProcessed : a.instagramRejectSuccess,
+    );
+
+    if (!result.alreadyProcessed && result.userTelegramId) {
+      const userT = this.i18n.t(result.userLanguage);
+      await this.notifyUser(
+        ctx,
+        result.userTelegramId,
+        userT.registration.instagramRejected,
+      );
+      if (result.userId) {
+        await this.registrationService.upsertSession(
+          result.userId,
+          RegistrationStep.INSTAGRAM_SUB,
+          {},
+        );
+      }
     }
   }
 

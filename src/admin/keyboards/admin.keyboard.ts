@@ -8,7 +8,9 @@ export function adminMenuKeyboard(t: Translations): InlineKeyboard {
     .text(a.statsBtn, 'admin:stats')
     .row()
     .text(a.leaderboardBtn, 'admin:leaderboard')
-    .text(a.storiesBtn, 'admin:stories');
+    .text(a.storiesBtn, 'admin:stories')
+    .row()
+    .text(a.instagramBtn, 'admin:instagram');
 }
 
 export function usersPageKeyboard(
@@ -36,4 +38,14 @@ export function storyActionKeyboard(
   return new InlineKeyboard()
     .text(a.approveBtn, `admin:approve:${storyId}`)
     .text(a.rejectBtn, `admin:reject:${storyId}`);
+}
+
+export function instagramActionKeyboard(
+  verificationId: number,
+  t: Translations,
+): InlineKeyboard {
+  const a = t.admin;
+  return new InlineKeyboard()
+    .text(a.approveBtn, `admin:ig_approve:${verificationId}`)
+    .text(a.rejectBtn, `admin:ig_reject:${verificationId}`);
 }

@@ -1,13 +1,15 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Language, RegistrationStep } from '@prisma/client';
+import { InstagramStatus, Language, RegistrationStep } from '@prisma/client';
 import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
+import { InstagramService } from '../instagram/instagram.service';
 import { mainMenuKeyboard } from '../main-menu/keyboards/main-menu.keyboard';
 import { RegistrationData } from './interfaces/registration-data.interface';
 import {
   contactKeyboard,
+  instagramPromptKeyboard,
   languageKeyboard,
   notSubscribedKeyboard,
   regionKeyboard,
@@ -28,6 +30,7 @@ export class RegistrationUpdate implements OnModuleInit {
     @Inject(BOT) private readonly bot: Bot,
     private readonly registrationService: RegistrationService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly instagramService: InstagramService,
     private readonly configService: ConfigService,
     private readonly i18n: I18nService,
   ) {
@@ -55,6 +58,9 @@ export class RegistrationUpdate implements OnModuleInit {
       this.onCheckSubscription(ctx),
     );
     composer.on('message:contact', (ctx) => this.onContact(ctx));
+    // Photo handler must be registered before StoryUpdate registers its own photo handler,
+    // so that registration-phase photos (Instagram screenshots) are intercepted first.
+    composer.on('message:photo', (ctx, next) => this.onPhoto(ctx, next));
     // Pass `next` so registered users fall through to MainMenuUpdate handlers.
     composer.on('message:text', (ctx, next) => this.onText(ctx, next));
 
@@ -105,7 +111,9 @@ export class RegistrationUpdate implements OnModuleInit {
   // ─── "Change language" button ────────────────────────────────────────────────
 
   private async onChangeLang(ctx: Context): Promise<void> {
-    await this.safeReply(ctx, LANG_SELECT_PROMPT, { reply_markup: languageKeyboard() });
+    await this.safeReply(ctx, LANG_SELECT_PROMPT, {
+      reply_markup: languageKeyboard(),
+    });
   }
 
   // ─── Language selection callback ──────────────────────────────────────────────
@@ -189,7 +197,12 @@ export class RegistrationUpdate implements OnModuleInit {
     );
     if (!user) return;
 
-    await this.handleSubscriptionCheck(ctx, user.id, user.language, user.registrationCompleted);
+    await this.handleSubscriptionCheck(
+      ctx,
+      user.id,
+      user.language,
+      user.registrationCompleted,
+    );
   }
 
   // ─── Inline button: check subscription ──────────────────────────────────────
@@ -208,7 +221,12 @@ export class RegistrationUpdate implements OnModuleInit {
     }
 
     if (!user) return;
-    await this.handleSubscriptionCheck(ctx, user.id, user.language, user.registrationCompleted);
+    await this.handleSubscriptionCheck(
+      ctx,
+      user.id,
+      user.language,
+      user.registrationCompleted,
+    );
   }
 
   // ─── Subscription gate ───────────────────────────────────────────────────────
@@ -220,17 +238,23 @@ export class RegistrationUpdate implements OnModuleInit {
     registrationCompleted: boolean,
   ): Promise<void> {
     const t = this.i18n.t(lang);
-    const subscribed = await this.subscriptionService.isSubscribed(ctx.from!.id);
+    const subscribed = await this.subscriptionService.isSubscribed(
+      ctx.from!.id,
+    );
+    const instagramLink = this.configService.get<string>(
+      'INSTAGRAM_LINK',
+      'https://www.instagram.com/atlet.uz/',
+    );
 
     if (!subscribed) {
       const channelLink = this.subscriptionService.getChannelLink();
       try {
         await ctx.editMessageText(t.registration.notSubscribed, {
-          reply_markup: notSubscribedKeyboard(t, channelLink),
+          reply_markup: notSubscribedKeyboard(t, channelLink, instagramLink),
         });
       } catch {
         await this.safeReply(ctx, t.registration.notSubscribed, {
-          reply_markup: notSubscribedKeyboard(t, channelLink),
+          reply_markup: notSubscribedKeyboard(t, channelLink, instagramLink),
         });
       }
       if (!registrationCompleted) {
@@ -243,23 +267,61 @@ export class RegistrationUpdate implements OnModuleInit {
       return;
     }
 
-    try {
-      await ctx.editMessageReplyMarkup();
-    } catch {
-      // Already removed — safe to ignore.
-    }
-
+    // Telegram subscription verified. For already-registered users skip straight to main menu.
     if (registrationCompleted) {
+      try {
+        await ctx.editMessageReplyMarkup();
+      } catch {}
       await this.showMainMenu(ctx, lang);
       return;
     }
 
+    // ── Instagram verification gate ──────────────────────────────────────────
+    const verification =
+      await this.instagramService.getVerificationByUserId(userId);
+
+    if (verification?.status === InstagramStatus.APPROVED) {
+      try {
+        await ctx.editMessageReplyMarkup();
+      } catch {}
+      await this.registrationService.upsertSession(
+        userId,
+        RegistrationStep.ASK_FIRST_NAME,
+        {},
+      );
+      await this.safeReply(ctx, t.registration.askFirstName);
+      return;
+    }
+
+    if (verification?.status === InstagramStatus.PENDING) {
+      try {
+        await ctx.editMessageText(t.registration.instagramPending);
+      } catch {
+        await this.safeReply(ctx, t.registration.instagramPending);
+      }
+      await this.registrationService.upsertSession(
+        userId,
+        RegistrationStep.WAITING_INSTAGRAM_APPROVAL,
+        {},
+      );
+      return;
+    }
+
+    // No record or REJECTED — prompt user to submit a screenshot.
+    try {
+      await ctx.editMessageText(t.registration.instagramPrompt, {
+        reply_markup: instagramPromptKeyboard(t, instagramLink),
+      });
+    } catch {
+      await this.safeReply(ctx, t.registration.instagramPrompt, {
+        reply_markup: instagramPromptKeyboard(t, instagramLink),
+      });
+    }
     await this.registrationService.upsertSession(
       userId,
-      RegistrationStep.ASK_FIRST_NAME,
+      RegistrationStep.INSTAGRAM_SUB,
       {},
     );
-    await this.safeReply(ctx, t.registration.askFirstName);
   }
 
   // ─── Text messages (FSM dispatch) ───────────────────────────────────────────
@@ -283,6 +345,8 @@ export class RegistrationUpdate implements OnModuleInit {
     switch (session.step) {
       case RegistrationStep.RULES:
       case RegistrationStep.CHECKING_SUB:
+      case RegistrationStep.INSTAGRAM_SUB:
+      case RegistrationStep.WAITING_INSTAGRAM_APPROVAL:
         break;
 
       case RegistrationStep.ASK_FIRST_NAME:
@@ -360,6 +424,55 @@ export class RegistrationUpdate implements OnModuleInit {
     await this.safeReply(ctx, t.registration.askRegion, {
       reply_markup: regionKeyboard(t),
     });
+  }
+
+  // ─── Instagram screenshot ────────────────────────────────────────────────────
+
+  private async onPhoto(ctx: Context, next: NextFunction): Promise<void> {
+    const user = await this.registrationService.getUserByTelegramId(
+      BigInt(ctx.from!.id),
+    );
+
+    if (!user || user.registrationCompleted) return next();
+
+    const session = await this.registrationService.getSession(user.id);
+    if (
+      !session ||
+      (session.step !== RegistrationStep.INSTAGRAM_SUB &&
+        session.step !== RegistrationStep.WAITING_INSTAGRAM_APPROVAL)
+    ) {
+      return next();
+    }
+
+    const photos = ctx.msg!.photo!;
+    const fileId = photos[photos.length - 1].file_id;
+
+    await this.instagramService.createOrUpdateVerification(user.id, fileId);
+    await this.registrationService.upsertSession(
+      user.id,
+      RegistrationStep.WAITING_INSTAGRAM_APPROVAL,
+      {},
+    );
+
+    const t = this.i18n.t(user.language);
+    await this.safeReply(ctx, t.registration.instagramPhotoReceived);
+
+    // Notify all admins about the new submission.
+    const pending = await this.instagramService.getPendingVerifications();
+    const name =
+      user.firstName || user.telegramUsername || String(user.telegramId);
+    for (const adminId of this.adminIds) {
+      try {
+        await ctx.api.sendMessage(
+          Number(adminId),
+          `📸 Yangi Instagram obuna so'rovi!\n👤 ${name}\n\nJami kutayotganlar: ${pending.length} ta\n\nAdmin panelga o'ting: /admin`,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[registration] Could not notify admin ${adminId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
   }
 
   // ─── Complete registration ───────────────────────────────────────────────────

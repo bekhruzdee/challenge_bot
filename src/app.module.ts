@@ -9,6 +9,7 @@ import { RegistrationModule } from './registration/registration.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { UsersModule } from './users/users.module';
 import { StoryModule } from './story/story.module';
+import { InstagramModule } from './instagram/instagram.module';
 import { AdminModule } from './admin/admin.module';
 import { BotChatModule } from './bot-chat/bot-chat.module';
 
@@ -26,6 +27,7 @@ import { BotChatModule } from './bot-chat/bot-chat.module';
     RegistrationModule,
     MainMenuModule,
     StoryModule,
+    InstagramModule,
     AdminModule,
     BotChatModule,
   ],
