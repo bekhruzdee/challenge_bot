@@ -11,4 +11,7 @@ export const ADMIN_CB = {
   INSTAGRAM: 'admin:instagram',
   INSTAGRAM_APPROVE: /^admin:ig_approve:(\d+)$/,
   INSTAGRAM_REJECT: /^admin:ig_reject:(\d+)$/,
+  BROADCAST: 'admin:broadcast',
+  BROADCAST_CONFIRM: 'admin:broadcast_confirm',
+  BROADCAST_CANCEL: 'admin:broadcast_cancel',
 } as const;

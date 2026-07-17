@@ -23,9 +23,10 @@ Davom etish uchun quyidagi tugmani bosing.`,
       "❌ Siz hali kanalga obuna bo'lmadingiz.\n\nKanalga o'tib, obuna bo'ling va «Tekshirish ✅» tugmasini bosing.",
     instagramPrompt:
       "📸 Instagram sahifamizga obuna bo'ling va obuna bo'lganingizni tasdiqlovchi skrinshot yuboring",
-    instagramBtn: '📸 Instagramga o\'tish',
+    instagramBtn: "📸 Instagramga o'tish",
     instagramPending: '⏳ Skrinshot admin tomonidan tekshirilmoqda, kuting...',
-    instagramPhotoReceived: '⏳ Skrinshot qabul qilindi! Admin tasdiqlashini kuting...',
+    instagramPhotoReceived:
+      '⏳ Skrinshot qabul qilindi! Admin tasdiqlashini kuting...',
     instagramApproved:
       "✅ Instagram obunangiz tasdiqlandi! Endi ro'yxatdan o'tishingiz mumkin.",
     instagramRejected:
@@ -64,7 +65,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     ratingBtn: '🏆 Reyting',
     referralBtn: "👥 Do'st taklif qilish",
     storyBtn: '📸 Storis yuborish (Screenshot)',
-    adminPanelBtn: "👑 Admin paneli",
+    adminPanelBtn: '👑 Admin paneli',
     changeLangBtn: "🌐 Tilni o'zgartirish",
     userNotFound: "⚠️ Foydalanuvchi topilmadi. /start buyrug'ini bosing.",
     locationInstruction:
@@ -185,5 +186,15 @@ Davom etish uchun quyidagi tugmani bosing.`,
       "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+15 ball* qo'shildi.",
     userRejected:
       "❌ *Storisingiz rad etildi.*\n\nQayta urinib ko'rishingiz mumkin.",
+    broadcastBtn: '📢 Xabar yuborish',
+    broadcastPrompt:
+      "📢 Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni yuboring:",
+    broadcastConfirmText:
+      'Quyidagi xabar barcha foydalanuvchilarga yuborilsinmi?',
+    broadcastSending: '⏳ Yuborilmoqda...',
+    broadcastDone: (sent: number, failed: number) =>
+      `✅ Xabar yuborildi!\n\n📤 Yuborildi: ${sent}\n❌ Xato: ${failed}`,
+    broadcastCancelled: '❌ Xabar yuborish bekor qilindi.',
+    broadcastNotFound: '⚠️ Xabar topilmadi. Qaytadan boshlang.',
   },
 } satisfies Translations;

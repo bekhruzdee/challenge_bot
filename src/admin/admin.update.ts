@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RegistrationStep } from '@prisma/client';
-import { Bot, Composer, Context, GrammyError } from 'grammy';
+import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { Translations } from '../i18n/types/translations.interface';
@@ -13,6 +13,7 @@ import { ADMIN_CB } from './admin.constants';
 import {
   adminMenuKeyboard,
   backKeyboard,
+  broadcastConfirmKeyboard,
   instagramActionKeyboard,
   storyActionKeyboard,
   usersPageKeyboard,
@@ -23,6 +24,11 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 @Injectable()
 export class AdminUpdate implements OnModuleInit {
   private readonly logger = new Logger(AdminUpdate.name);
+  private readonly broadcastAwaitingAdmins = new Set<bigint>();
+  private readonly pendingBroadcasts = new Map<
+    bigint,
+    NonNullable<Context['message']>
+  >();
 
   constructor(
     @Inject(BOT) private readonly bot: Bot,
@@ -46,6 +52,9 @@ export class AdminUpdate implements OnModuleInit {
       return next();
     });
 
+    // Broadcast message capture — must be first to intercept pending messages.
+    composer.on('message', (ctx, next) => this.onBroadcastMessage(ctx, next));
+
     composer.command('admin', (ctx) => this.onAdminCommand(ctx));
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.adminPanelBtn),
@@ -66,6 +75,13 @@ export class AdminUpdate implements OnModuleInit {
     );
     composer.callbackQuery(ADMIN_CB.INSTAGRAM_REJECT, (ctx) =>
       this.onInstagramReject(ctx),
+    );
+    composer.callbackQuery(ADMIN_CB.BROADCAST, (ctx) => this.onBroadcast(ctx));
+    composer.callbackQuery(ADMIN_CB.BROADCAST_CONFIRM, (ctx) =>
+      this.onBroadcastConfirm(ctx),
+    );
+    composer.callbackQuery(ADMIN_CB.BROADCAST_CANCEL, (ctx) =>
+      this.onBroadcastCancel(ctx),
     );
 
     this.bot.use(composer);
@@ -392,6 +408,129 @@ export class AdminUpdate implements OnModuleInit {
         );
       }
     }
+  }
+
+  // ─── Broadcast ──────────────────────────────────────────────────────────────
+
+  private async onBroadcastMessage(
+    ctx: Context,
+    next: NextFunction,
+  ): Promise<void> {
+    const adminId = BigInt(ctx.from!.id);
+    if (!this.broadcastAwaitingAdmins.has(adminId) || !ctx.message) {
+      return next();
+    }
+
+    this.broadcastAwaitingAdmins.delete(adminId);
+    this.pendingBroadcasts.set(adminId, ctx.message);
+
+    const t = await this.getT(ctx);
+    try {
+      await ctx.reply(t.admin.broadcastConfirmText, {
+        reply_markup: broadcastConfirmKeyboard(),
+        reply_to_message_id: ctx.message.message_id,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[admin] broadcast confirm reply failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+      );
+    }
+  }
+
+  private async onBroadcast(ctx: Context): Promise<void> {
+    await this.safeAnswerCallbackQuery(ctx);
+    const adminId = BigInt(ctx.from!.id);
+    this.broadcastAwaitingAdmins.add(adminId);
+    const t = await this.getT(ctx);
+    await this.safeEditText(ctx, t.admin.broadcastPrompt);
+  }
+
+  private async onBroadcastConfirm(ctx: Context): Promise<void> {
+    await this.safeAnswerCallbackQuery(ctx);
+    const adminId = BigInt(ctx.from!.id);
+    const msg = this.pendingBroadcasts.get(adminId);
+    const t = await this.getT(ctx);
+
+    if (!msg) {
+      await this.safeEditText(ctx, t.admin.broadcastNotFound);
+      return;
+    }
+
+    this.pendingBroadcasts.delete(adminId);
+    await this.safeEditText(ctx, t.admin.broadcastSending);
+
+    const { sent, failed } = await this.doBroadcast(ctx, msg);
+    await this.safeEditText(ctx, t.admin.broadcastDone(sent, failed));
+  }
+
+  private async onBroadcastCancel(ctx: Context): Promise<void> {
+    await this.safeAnswerCallbackQuery(ctx);
+    const adminId = BigInt(ctx.from!.id);
+    this.pendingBroadcasts.delete(adminId);
+    this.broadcastAwaitingAdmins.delete(adminId);
+    const t = await this.getT(ctx);
+    await this.safeEditText(ctx, t.admin.broadcastCancelled);
+  }
+
+  private async doBroadcast(
+    ctx: Context,
+    msg: NonNullable<Context['message']>,
+  ): Promise<{ sent: number; failed: number }> {
+    const users = await this.adminService.getAllActiveUsers();
+    let sent = 0;
+    let failed = 0;
+
+    for (const user of users) {
+      const chatId = Number(user.telegramId);
+      try {
+        if (msg.text) {
+          await ctx.api.sendMessage(chatId, msg.text, {
+            entities: msg.entities,
+          });
+        } else if (msg.photo) {
+          const fileId = msg.photo[msg.photo.length - 1].file_id;
+          await ctx.api.sendPhoto(chatId, fileId, {
+            caption: msg.caption,
+            caption_entities: msg.caption_entities,
+          });
+        } else if (msg.video) {
+          await ctx.api.sendVideo(chatId, msg.video.file_id, {
+            caption: msg.caption,
+            caption_entities: msg.caption_entities,
+          });
+        } else if (msg.voice) {
+          await ctx.api.sendVoice(chatId, msg.voice.file_id, {
+            caption: msg.caption,
+          });
+        } else if (msg.document) {
+          await ctx.api.sendDocument(chatId, msg.document.file_id, {
+            caption: msg.caption,
+            caption_entities: msg.caption_entities,
+          });
+        } else if (msg.animation) {
+          await ctx.api.sendAnimation(chatId, msg.animation.file_id, {
+            caption: msg.caption,
+            caption_entities: msg.caption_entities,
+          });
+        }
+        sent++;
+      } catch (err) {
+        failed++;
+        const desc = err instanceof GrammyError ? err.description : String(err);
+        if (
+          !desc.includes('bot was blocked') &&
+          !desc.includes('chat not found') &&
+          !desc.includes('user is deactivated') &&
+          !desc.includes('PEER_ID_INVALID') &&
+          !desc.includes('Forbidden')
+        ) {
+          this.logger.warn(`[admin] broadcast error for ${chatId}: ${desc}`);
+        }
+      }
+      await new Promise<void>((r) => setTimeout(r, 35));
+    }
+
+    return { sent, failed };
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────

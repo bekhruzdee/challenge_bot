@@ -10,7 +10,9 @@ export function adminMenuKeyboard(t: Translations): InlineKeyboard {
     .text(a.leaderboardBtn, 'admin:leaderboard')
     .text(a.storiesBtn, 'admin:stories')
     .row()
-    .text(a.instagramBtn, 'admin:instagram');
+    .text(a.instagramBtn, 'admin:instagram')
+    .row()
+    .text(a.broadcastBtn, 'admin:broadcast');
 }
 
 export function usersPageKeyboard(
@@ -48,4 +50,10 @@ export function instagramActionKeyboard(
   return new InlineKeyboard()
     .text(a.approveBtn, `admin:ig_approve:${verificationId}`)
     .text(a.rejectBtn, `admin:ig_reject:${verificationId}`);
+}
+
+export function broadcastConfirmKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text('✅ Yuborish', 'admin:broadcast_confirm')
+    .text('❌ Bekor qilish', 'admin:broadcast_cancel');
 }

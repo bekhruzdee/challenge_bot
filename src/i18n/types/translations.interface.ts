@@ -134,5 +134,12 @@ export interface Translations {
     rejectSuccess: string;
     userApproved: string;
     userRejected: string;
+    broadcastBtn: string;
+    broadcastPrompt: string;
+    broadcastConfirmText: string;
+    broadcastSending: string;
+    broadcastDone: (sent: number, failed: number) => string;
+    broadcastCancelled: string;
+    broadcastNotFound: string;
   };
 }

@@ -106,6 +106,13 @@ export class AdminService {
     };
   }
 
+  getAllActiveUsers(): Promise<{ telegramId: bigint }[]> {
+    return this.prisma.user.findMany({
+      where: { registrationCompleted: true },
+      select: { telegramId: true },
+    });
+  }
+
   getLeaderboard(take = 20): Promise<LeaderboardEntry[]> {
     return this.usersService.getLeaderboard(take);
   }

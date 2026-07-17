@@ -25,7 +25,8 @@ export const ru = {
       '📸 Подпишитесь на наш Instagram и отправьте скриншот подписки',
     instagramBtn: '📸 Перейти в Instagram',
     instagramPending: '⏳ Скриншот проверяется администратором, подождите...',
-    instagramPhotoReceived: '⏳ Скриншот принят! Ожидайте подтверждения администратора...',
+    instagramPhotoReceived:
+      '⏳ Скриншот принят! Ожидайте подтверждения администратора...',
     instagramApproved:
       '✅ Ваша подписка на Instagram подтверждена! Теперь вы можете пройти регистрацию.',
     instagramRejected:
@@ -184,5 +185,13 @@ export const ru = {
       '✅ *Ваша история подтверждена!*\n\nНа ваш счёт начислено *+15 очков*.',
     userRejected:
       '❌ *Ваша история отклонена.*\n\nВы можете попробовать ещё раз.',
+    broadcastBtn: '📢 Рассылка',
+    broadcastPrompt: '📢 Отправьте сообщение для рассылки всем пользователям:',
+    broadcastConfirmText: 'Отправить это сообщение всем пользователям?',
+    broadcastSending: '⏳ Отправляю...',
+    broadcastDone: (sent: number, failed: number) =>
+      `✅ Рассылка завершена!\n\n📤 Отправлено: ${sent}\n❌ Ошибок: ${failed}`,
+    broadcastCancelled: '❌ Рассылка отменена.',
+    broadcastNotFound: '⚠️ Сообщение не найдено. Начните заново.',
   },
 } satisfies Translations;
