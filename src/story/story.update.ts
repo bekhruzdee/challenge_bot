@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
@@ -10,6 +11,7 @@ import { notSubscribedKeyboard } from '../registration/keyboards/registration.ke
 @Injectable()
 export class StoryUpdate implements OnModuleInit {
   private readonly logger = new Logger(StoryUpdate.name);
+  private readonly adminIds: Set<bigint>;
 
   constructor(
     @Inject(BOT) private readonly bot: Bot,
@@ -17,7 +19,17 @@ export class StoryUpdate implements OnModuleInit {
     private readonly storyService: StoryService,
     private readonly subscriptionService: SubscriptionService,
     private readonly i18n: I18nService,
-  ) {}
+    configService: ConfigService,
+  ) {
+    const raw = configService.get<string>('ADMIN_IDS', '');
+    this.adminIds = new Set(
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map(BigInt),
+    );
+  }
 
   onModuleInit(): void {
     const composer = new Composer<Context>();
@@ -26,9 +38,9 @@ export class StoryUpdate implements OnModuleInit {
 
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.storyBtn),
-      (ctx) => this.onStoryButton(ctx),
+      (ctx, next) => this.onStoryButton(ctx, next),
     );
-    composer.on('message:photo', (ctx) => this.onPhoto(ctx));
+    composer.on('message:photo', (ctx, next) => this.onPhoto(ctx, next));
 
     this.bot.use(composer);
     this.logger.log('Story handlers registered');
@@ -41,6 +53,7 @@ export class StoryUpdate implements OnModuleInit {
     next: NextFunction,
   ): Promise<void> {
     if (!ctx.from) return next();
+    if (this.adminIds.has(BigInt(ctx.from.id))) return next();
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from.id));
     if (!user?.registrationCompleted) return next();
 
@@ -55,13 +68,15 @@ export class StoryUpdate implements OnModuleInit {
     return next();
   }
 
-  private async onStoryButton(ctx: Context): Promise<void> {
+  private async onStoryButton(ctx: Context, next: NextFunction): Promise<void> {
+    if (this.adminIds.has(BigInt(ctx.from!.id))) return next();
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
     await this.safeReply(ctx, t.story.prompt, { parse_mode: 'Markdown' });
   }
 
-  private async onPhoto(ctx: Context): Promise<void> {
+  private async onPhoto(ctx: Context, next: NextFunction): Promise<void> {
+    if (this.adminIds.has(BigInt(ctx.from!.id))) return next();
     const telegramId = BigInt(ctx.from!.id);
     const user = await this.usersService.findByTelegramId(telegramId);
 
