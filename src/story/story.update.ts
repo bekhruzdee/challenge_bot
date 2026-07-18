@@ -73,7 +73,8 @@ export class StoryUpdate implements OnModuleInit {
     if (this.adminIds.has(BigInt(ctx.from!.id))) return;
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
-    await this.safeReply(ctx, t.story.prompt, { parse_mode: 'Markdown' });
+    const prompt = user?.storyBonusGiven ? t.story.promptRepeat : t.story.prompt;
+    await this.safeReply(ctx, prompt, { parse_mode: 'Markdown' });
   }
 
   private async onPhoto(ctx: Context, next: NextFunction): Promise<void> {

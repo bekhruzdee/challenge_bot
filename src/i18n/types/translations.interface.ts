@@ -89,6 +89,7 @@ export interface Translations {
 
   story: {
     prompt: string;
+    promptRepeat: string;
     alreadyBonused: string;
     pending: string;
     submitted: string;

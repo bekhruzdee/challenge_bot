@@ -128,6 +128,11 @@ Davom etish uchun quyidagi tugmani bosing.`,
       'Storis skrinshoti (screenshot) yuboring.\n' +
       "Admin tasdiqlashidan so'ng *+15 ball* olasiz!\n\n" +
       '📎 Skrinshot yuboring (ixtiyoriy sarlavha bilan).',
+    promptRepeat:
+      '📸 *Storis yuborish (Screenshot)*\n\n' +
+      'Storis skrinshoti (screenshot) yuboring.\n' +
+      "Admin tasdiqlashidan so'ng *+5 ball* olasiz!\n\n" +
+      '📎 Skrinshot yuboring (ixtiyoriy sarlavha bilan).',
     alreadyBonused: '✅ Siz allaqachon storis bonusini oldingiz.',
     pending: "⏳ Sizning storisingiz ko'rib chiqilmoqda. Iltimos, kuting.",
     submitted:
