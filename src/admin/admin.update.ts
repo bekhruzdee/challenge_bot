@@ -274,11 +274,10 @@ export class AdminUpdate implements OnModuleInit {
 
     if (!result.alreadyProcessed && result.userTelegramId) {
       const userT = this.i18n.t(result.userLanguage);
-      await this.notifyUser(
-        ctx,
-        result.userTelegramId,
-        userT.admin.userApproved,
-      );
+      const approvedMsg = result.isFirstBonus
+        ? userT.admin.userApproved
+        : userT.admin.userApprovedRepeat;
+      await this.notifyUser(ctx, result.userTelegramId, approvedMsg);
     }
   }
 

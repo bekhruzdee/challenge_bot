@@ -138,6 +138,9 @@ Davom etish uchun quyidagi tugmani bosing.`,
     submitted:
       '✅ *Storisingiz yuborildi!*\n\n' +
       "Admin ko'rib chiqqandan so'ng sizga *+15 ball* beriladi.",
+    submittedRepeat:
+      '✅ *Storisingiz yuborildi!*\n\n' +
+      "Admin ko'rib chiqqandan so'ng sizga *+5 ball* beriladi.",
     cooldown: (hours: number) =>
       `⏳ Keyingi storyni yuborish uchun ${hours} soat kutishingiz kerak.`,
   },
@@ -189,6 +192,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
     rejectSuccess: '❌ Storis rad etildi.',
     userApproved:
       "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+15 ball* qo'shildi.",
+    userApprovedRepeat:
+      "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+5 ball* qo'shildi.",
     userRejected:
       "❌ *Storisingiz rad etildi.*\n\nQayta urinib ko'rishingiz mumkin.",
     broadcastBtn: '📢 Xabar yuborish',

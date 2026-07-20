@@ -41,7 +41,9 @@ export class StoryUpdate implements OnModuleInit {
       (ctx) => this.onStoryButton(ctx),
     );
     composer.on('message:photo', (ctx, next) => this.onPhoto(ctx, next));
-    composer.on('message:video_note', (ctx, next) => this.onVideoNote(ctx, next));
+    composer.on('message:video_note', (ctx, next) =>
+      this.onVideoNote(ctx, next),
+    );
 
     this.bot.use(composer);
     this.logger.log('Story handlers registered');
@@ -62,7 +64,10 @@ export class StoryUpdate implements OnModuleInit {
     if (!subscribed) {
       const t = this.i18n.t(user.language);
       await this.safeReply(ctx, t.registration.notSubscribed, {
-        reply_markup: notSubscribedKeyboard(t, this.subscriptionService.getChannelLink()),
+        reply_markup: notSubscribedKeyboard(
+          t,
+          this.subscriptionService.getChannelLink(),
+        ),
       });
       return;
     }
@@ -73,7 +78,9 @@ export class StoryUpdate implements OnModuleInit {
     if (this.adminIds.has(BigInt(ctx.from!.id))) return;
     const user = await this.usersService.findByTelegramId(BigInt(ctx.from!.id));
     const t = this.i18n.t(user?.language);
-    const prompt = user?.storyBonusGiven ? t.story.promptRepeat : t.story.prompt;
+    const prompt = user?.storyBonusGiven
+      ? t.story.promptRepeat
+      : t.story.prompt;
     await this.safeReply(ctx, prompt, { parse_mode: 'Markdown' });
   }
 
@@ -108,7 +115,10 @@ export class StoryUpdate implements OnModuleInit {
     const caption = ctx.msg!.caption ?? undefined;
 
     await this.storyService.createSubmission(user.id, fileId, caption, 'photo');
-    await this.safeReply(ctx, t.story.submitted, { parse_mode: 'Markdown' });
+    const submittedMsg = user.storyBonusGiven
+      ? t.story.submittedRepeat
+      : t.story.submitted;
+    await this.safeReply(ctx, submittedMsg, { parse_mode: 'Markdown' });
   }
 
   private async onVideoNote(ctx: Context, next: NextFunction): Promise<void> {
@@ -138,8 +148,16 @@ export class StoryUpdate implements OnModuleInit {
     }
 
     const fileId = ctx.msg!.video_note!.file_id;
-    await this.storyService.createSubmission(user.id, fileId, undefined, 'video_note');
-    await this.safeReply(ctx, t.story.submitted, { parse_mode: 'Markdown' });
+    await this.storyService.createSubmission(
+      user.id,
+      fileId,
+      undefined,
+      'video_note',
+    );
+    const submittedMsg = user.storyBonusGiven
+      ? t.story.submittedRepeat
+      : t.story.submitted;
+    await this.safeReply(ctx, submittedMsg, { parse_mode: 'Markdown' });
   }
 
   private async safeReply(

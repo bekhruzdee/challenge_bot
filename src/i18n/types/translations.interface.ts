@@ -93,6 +93,7 @@ export interface Translations {
     alreadyBonused: string;
     pending: string;
     submitted: string;
+    submittedRepeat: string;
     cooldown: (hours: number) => string;
   };
 
@@ -134,6 +135,7 @@ export interface Translations {
     approveSuccess: string;
     rejectSuccess: string;
     userApproved: string;
+    userApprovedRepeat: string;
     userRejected: string;
     broadcastBtn: string;
     broadcastPrompt: string;

@@ -10,6 +10,7 @@ export interface StoryActionResult {
   alreadyProcessed: boolean;
   userTelegramId?: bigint;
   userLanguage?: Language | null;
+  isFirstBonus?: boolean;
 }
 
 const STORY_FIRST_BONUS = 15;
@@ -71,6 +72,10 @@ export class StoryService {
         },
       });
 
+      const isFirstBonus = submission
+        ? !submission.user.storyBonusGiven
+        : undefined;
+
       if (submission) {
         const bonus = submission.user.storyBonusGiven
           ? STORY_REPEAT_BONUS
@@ -85,6 +90,7 @@ export class StoryService {
         alreadyProcessed: false,
         userTelegramId: submission?.user.telegramId,
         userLanguage: submission?.user.language,
+        isFirstBonus,
       };
     });
   }
