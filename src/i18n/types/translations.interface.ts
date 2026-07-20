@@ -133,6 +133,7 @@ export interface Translations {
     instagramRejectSuccess: string;
     alreadyProcessed: string;
     approveSuccess: string;
+    approveSuccessRepeat: string;
     rejectSuccess: string;
     userApproved: string;
     userApprovedRepeat: string;

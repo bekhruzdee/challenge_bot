@@ -268,7 +268,9 @@ export class AdminUpdate implements OnModuleInit {
 
     const caption = result.alreadyProcessed
       ? t.admin.alreadyProcessed
-      : t.admin.approveSuccess;
+      : result.isFirstBonus
+        ? t.admin.approveSuccess
+        : t.admin.approveSuccessRepeat;
 
     await this.safeEditCaption(ctx, caption);
 

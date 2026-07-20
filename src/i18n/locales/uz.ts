@@ -189,6 +189,8 @@ Davom etish uchun quyidagi tugmani bosing.`,
     instagramRejectSuccess: '❌ Rad etildi',
     alreadyProcessed: "⚠️ Bu storis allaqachon ko'rib chiqilgan.",
     approveSuccess: '✅ Storis tasdiqlandi. Foydalanuvchiga +15 ball berildi.',
+    approveSuccessRepeat:
+      '✅ Storis tasdiqlandi. Foydalanuvchiga +5 ball berildi.',
     rejectSuccess: '❌ Storis rad etildi.',
     userApproved:
       "✅ *Storisingiz tasdiqlandi!*\n\nHisobingizga *+15 ball* qo'shildi.",
