@@ -98,7 +98,7 @@ model StorySubmission {
   status    StoryStatus @default(PENDING)
   createdAt DateTime    @default(now())
 
-  @@index([userId])
+  @@index([userId, status])
   @@index([status])
   @@map("story_submissions")
 }
