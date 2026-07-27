@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Language, RegistrationStep, User, UserSession } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { RegistrationData } from './interfaces/registration-data.interface';
+import { cacheSerialize, cacheDeserialize } from '../redis/cache-utils';
 
 const REFERRAL_BONUS_POINTS = 10;
 
@@ -11,6 +14,7 @@ export class RegistrationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async getOrCreateUser(
@@ -41,8 +45,15 @@ export class RegistrationService {
     return this.usersService.findByTelegramId(telegramId);
   }
 
-  getSession(userId: number): Promise<UserSession | null> {
-    return this.prisma.userSession.findUnique({ where: { userId } });
+  async getSession(userId: number): Promise<UserSession | null> {
+    const key = `session:${userId}`;
+    const raw = await this.cache.get<string>(key);
+    if (raw !== undefined) return cacheDeserialize<UserSession | null>(raw);
+    const session = await this.prisma.userSession.findUnique({
+      where: { userId },
+    });
+    await this.cache.set(key, cacheSerialize(session), 300_000);
+    return session;
   }
 
   async upsertSession(
@@ -55,6 +66,7 @@ export class RegistrationService {
       update: { step, data },
       create: { userId, step, data },
     });
+    await this.cache.del(`session:${userId}`);
   }
 
   setLanguage(userId: number, language: Language): Promise<User> {
@@ -79,6 +91,7 @@ export class RegistrationService {
     });
 
     await this.prisma.userSession.delete({ where: { userId } });
+    await this.cache.del(`session:${userId}`);
 
     // Award the referral bonus to the referrer exactly once.
     if (user?.referrerId) {

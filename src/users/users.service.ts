@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { type Prisma, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { cacheSerialize, cacheDeserialize } from '../redis/cache-utils';
 
 export interface LeaderboardEntry {
   id: number;
@@ -13,22 +16,34 @@ export interface LeaderboardEntry {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
-  findByTelegramId(telegramId: bigint): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { telegramId } });
+  async findByTelegramId(telegramId: bigint): Promise<User | null> {
+    const key = `user:${telegramId}`;
+    const raw = await this.cache.get<string>(key);
+    if (raw !== undefined) return cacheDeserialize<User | null>(raw);
+    const user = await this.prisma.user.findUnique({ where: { telegramId } });
+    await this.cache.set(key, cacheSerialize(user), 60_000);
+    return user;
   }
 
   findById(id: number): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
-  create(dto: CreateUserDto): Promise<User> {
-    return this.prisma.user.create({ data: dto });
+  async create(dto: CreateUserDto): Promise<User> {
+    const user = await this.prisma.user.create({ data: dto });
+    await this.cache.del(`user:${user.telegramId}`);
+    return user;
   }
 
-  update(id: number, dto: UpdateUserDto): Promise<User> {
-    return this.prisma.user.update({ where: { id }, data: dto });
+  async update(id: number, dto: UpdateUserDto): Promise<User> {
+    const user = await this.prisma.user.update({ where: { id }, data: dto });
+    await this.cache.del(`user:${user.telegramId}`);
+    return user;
   }
 
   async existsByTelegramId(telegramId: bigint): Promise<boolean> {
@@ -39,15 +54,17 @@ export class UsersService {
     return hit !== null;
   }
 
-  addPoints(
+  async addPoints(
     id: number,
     amount: number,
     tx?: Prisma.TransactionClient,
   ): Promise<User> {
-    return (tx ?? this.prisma).user.update({
+    const user = await (tx ?? this.prisma).user.update({
       where: { id },
       data: { points: { increment: amount } },
     });
+    await this.cache.del(`user:${user.telegramId}`);
+    return user;
   }
 
   /** 1-based rank among registered users sorted by points descending. */

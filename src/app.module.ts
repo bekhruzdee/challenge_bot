@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller';
+import { RedisModule } from './redis/redis.module';
 import { I18nModule } from './i18n/i18n.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { MainMenuModule } from './main-menu/main-menu.module';
@@ -20,6 +21,7 @@ import { BotChatModule } from './bot-chat/bot-chat.module';
       envFilePath: '.env',
       ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
+    RedisModule,
     I18nModule,
     PrismaModule,
     TelegramModule,

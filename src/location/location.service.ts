@@ -1,13 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Location, Progress } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { haversineMeters } from './utils/haversine';
+import { cacheSerialize, cacheDeserialize } from '../redis/cache-utils';
 
 const STEP_LENGTH_M = 0.75;
 const DAILY_GOAL_STEPS = 10_000;
 const GOAL_BONUS_POINTS = 100;
-const MIN_DISTANCE_M_FLOOR = 10;   // hard minimum regardless of GPS accuracy
+const MIN_DISTANCE_M_FLOOR = 10; // hard minimum regardless of GPS accuracy
 const MIN_DISTANCE_M_DEFAULT = 20; // assumed per-point radius when horizontalAccuracy is absent
 const MAX_SPEED_KMH = 10;
 const MAX_HORIZONTAL_ACCURACY_M = 20;
@@ -52,6 +55,7 @@ export class LocationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   /** Entry point from the bot handler. Returns null if the user is not in the DB. */
@@ -110,7 +114,12 @@ export class LocationService {
     // distance can accumulate naturally on the next update.
     if (!lastLocation) {
       await this.prisma.location.create({
-        data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
+        data: {
+          userId,
+          latitude,
+          longitude,
+          horizontalAccuracy: horizontalAccuracy ?? null,
+        },
       });
       this.logger.debug(
         `[location] userId=${userId} — first point saved, tracking initialised`,
@@ -154,7 +163,12 @@ export class LocationService {
         `[location] userId=${userId} elapsedMs=${elapsedMs} — gap reset (tracking interrupted)`,
       );
       await this.prisma.location.create({
-        data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
+        data: {
+          userId,
+          latitude,
+          longitude,
+          horizontalAccuracy: horizontalAccuracy ?? null,
+        },
       });
       return this.gapResetResult();
     }
@@ -186,7 +200,12 @@ export class LocationService {
         `[location] userId=${userId} speed=${speedKmh.toFixed(1)} km/h — filtered`,
       );
       await this.prisma.location.create({
-        data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
+        data: {
+          userId,
+          latitude,
+          longitude,
+          horizontalAccuracy: horizontalAccuracy ?? null,
+        },
       });
       // Throttled speed warning: at most once per SPEED_WARNING_INTERVAL_MS.
       const progress = await this.getOrCreateProgress(userId, today);
@@ -200,6 +219,7 @@ export class LocationService {
           where: { id: progress.id },
           data: { lastSpeedWarningAt: new Date(now) },
         });
+        await this.cache.del(`progress:${userId}:${today.getTime()}`);
       }
       return this.filteredResult('too_fast', speedKmh, shouldWarnSpeed);
     }
@@ -216,7 +236,12 @@ export class LocationService {
 
     // All checks passed — persist this point as the anchor for the next update.
     await this.prisma.location.create({
-      data: { userId, latitude, longitude, horizontalAccuracy: horizontalAccuracy ?? null },
+      data: {
+        userId,
+        latitude,
+        longitude,
+        horizontalAccuracy: horizontalAccuracy ?? null,
+      },
     });
 
     const newMeters = progress.totalMeters + distanceM;
@@ -260,6 +285,7 @@ export class LocationService {
         data: progressData,
       });
     }
+    await this.cache.del(`progress:${userId}:${today.getTime()}`);
 
     return {
       isFirstLocation: false,
@@ -361,11 +387,16 @@ export class LocationService {
     userId: number,
     date: Date,
   ): Promise<Progress> {
-    return this.prisma.progress.upsert({
+    const key = `progress:${userId}:${date.getTime()}`;
+    const raw = await this.cache.get<string>(key);
+    if (raw !== undefined) return cacheDeserialize<Progress>(raw);
+    const progress = await this.prisma.progress.upsert({
       where: { userId_date: { userId, date } },
       update: {},
       create: { userId, date },
     });
+    await this.cache.set(key, cacheSerialize(progress), 30_000);
+    return progress;
   }
 
   private todayUtc(): Date {

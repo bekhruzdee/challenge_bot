@@ -14,10 +14,24 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   bot:
     build: .
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/challenge_bot
@@ -34,7 +48,10 @@ services:
       WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN:-}
       WEBHOOK_PATH: ${WEBHOOK_PATH:-/webhook}
       WEBHOOK_SECRET_TOKEN: ${WEBHOOK_SECRET_TOKEN:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:

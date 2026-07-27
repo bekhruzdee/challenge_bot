@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -28,6 +29,12 @@ const mockPrismaService = {
   },
 };
 
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(undefined),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+};
+
 describe('UsersService', () => {
   let service: UsersService;
 
@@ -36,6 +43,7 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],
     }).compile();
 
