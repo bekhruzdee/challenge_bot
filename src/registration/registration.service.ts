@@ -98,7 +98,7 @@ export class RegistrationService {
       const referralCount = await this.prisma.user.count({
         where: { referrerId: user.referrerId },
       });
-      if (referralCount <= 1) {
+      if (referralCount <= 5) {
         await this.usersService.addPoints(
           user.referrerId,
           REFERRAL_BONUS_POINTS,
