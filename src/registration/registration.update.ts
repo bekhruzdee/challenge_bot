@@ -64,6 +64,13 @@ export class RegistrationUpdate implements OnModuleInit {
     // Pass `next` so registered users fall through to MainMenuUpdate handlers.
     composer.on('message:text', (ctx, next) => this.onText(ctx, next));
 
+    // TEMP: log video file_id for admins
+    composer.on('message:video', (ctx) => {
+      if (this.adminIds.has(BigInt(ctx.from!.id))) {
+        this.logger.log(`VIDEO FILE_ID: ${ctx.message.video.file_id}`);
+      }
+    });
+
     this.bot.use(composer);
     this.logger.log('Registration handlers registered');
   }
