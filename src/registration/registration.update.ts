@@ -64,13 +64,6 @@ export class RegistrationUpdate implements OnModuleInit {
     // Pass `next` so registered users fall through to MainMenuUpdate handlers.
     composer.on('message:text', (ctx, next) => this.onText(ctx, next));
 
-    // TEMP: log video file_id for admins
-    composer.on('message:video', (ctx) => {
-      if (this.adminIds.has(BigInt(ctx.from!.id))) {
-        this.logger.log(`VIDEO FILE_ID: ${ctx.message.video.file_id}`);
-      }
-    });
-
     this.bot.use(composer);
     this.logger.log('Registration handlers registered');
   }
@@ -132,6 +125,20 @@ export class RegistrationUpdate implements OnModuleInit {
           RegistrationStep.RULES,
           {},
         );
+        try {
+          await ctx.api.sendVideo(
+            ctx.chat!.id,
+            'BAACAgIAAxkBAAJL_GprFDCdVdDkl57GhUGrcFJlLqzHAAJpmgAC16NYS9aFnR5YfoYlPQQ',
+            {
+              caption:
+                "Eslatib o'tamiz❗️\n\nQadamlar faqat bot orqali xisoblanadi boshqa ilovalar orqali xisoblangan qadamlar qabul qilinmaydi.\n\nMashina, Samakat va Velikda qadamlar xisoblanmaydi chunki tezlik 10km/soatdan oshsa BOT aftomatik tarzda xisoblashdan to'xtaydi va sizni ogohlantiradi.\n\nCHALLENGEmiz 1-avgustdan 31-avgustgacha davom etadi.\n\nBarchangizga omad yor bo'lsin, to'xtab qolma ATLET😁",
+            },
+          );
+        } catch (err) {
+          this.logger.warn(
+            `[registration] sendVideo failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+          );
+        }
         await this.safeReply(ctx, t.registration.rules, {
           parse_mode: 'Markdown',
           reply_markup: rulesKeyboard(t),
