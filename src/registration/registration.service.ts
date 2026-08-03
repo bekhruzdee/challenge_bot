@@ -95,9 +95,7 @@ export class RegistrationService {
 
     // Award the referral bonus to the referrer exactly once.
     if (user?.referrerId) {
-      const referralCount = await this.prisma.user.count({
-        where: { referrerId: user.referrerId },
-      });
+      const referralCount = await this.usersService.getCompletedReferralCount(user.referrerId);
       if (referralCount <= 5) {
         await this.usersService.addPoints(
           user.referrerId,
