@@ -400,7 +400,7 @@ export class MainMenuUpdate implements OnModuleInit {
       : t.mainMenu.referralNoBotUsername;
     this.logger.debug(`[referral] link="${referralLink}"`);
 
-    const totalReferralPoints = referralCount * REFERRAL_BONUS_PER_USER;
+    const totalReferralPoints = Math.min(referralCount, 5) * REFERRAL_BONUS_PER_USER;
     const m = t.mainMenu;
 
     // HTML parse mode: Markdown v1 treats underscores in bot usernames as italic.
