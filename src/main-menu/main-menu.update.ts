@@ -1,10 +1,17 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot, Composer, Context, GrammyError, NextFunction } from 'grammy';
+import {
+  Bot,
+  Composer,
+  Context,
+  GrammyError,
+  InlineKeyboard,
+  NextFunction,
+} from 'grammy';
 import { BOT } from '../telegram/telegram.constants';
 import { I18nService } from '../i18n/i18n.service';
 import { Translations } from '../i18n/types/translations.interface';
-import { LeaderboardEntry, UsersService } from '../users/users.service';
+import { UsersService } from '../users/users.service';
 import { LocationResult, LocationService } from '../location/location.service';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { notSubscribedKeyboard } from '../registration/keyboards/registration.keyboard';
@@ -12,6 +19,7 @@ import { notSubscribedKeyboard } from '../registration/keyboards/registration.ke
 const DAILY_GOAL_STEPS = 10_000;
 const REFERRAL_BONUS_PER_USER = 10;
 const MEDALS = ['🥇', '🥈', '🥉'];
+const PAGE_SIZE = 20;
 
 @Injectable()
 export class MainMenuUpdate implements OnModuleInit {
@@ -49,6 +57,9 @@ export class MainMenuUpdate implements OnModuleInit {
     composer.hears(
       this.i18n.allVariants((t) => t.mainMenu.referralBtn),
       (ctx) => this.onReferral(ctx),
+    );
+    composer.callbackQuery(/^leaderboard:page:(\d+)$/, (ctx) =>
+      this.onLeaderboardPage(ctx),
     );
 
     this.bot.use(composer);
@@ -271,48 +282,97 @@ export class MainMenuUpdate implements OnModuleInit {
       return;
     }
 
-    const [leaderboard, rank] = await Promise.all([
-      this.usersService.getLeaderboard(10),
-      this.usersService.getUserRank(user.id),
-    ]);
-
-    await this.safeReply(
-      ctx,
-      this.buildLeaderboard(leaderboard, user.id, rank, user.points, t),
-      { parse_mode: 'Markdown' },
+    const { text, keyboard } = await this.fetchLeaderboardPage(
+      user.id,
+      user.points,
+      1,
+      t,
     );
+    await this.safeReply(ctx, text, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard,
+    });
   }
 
-  private buildLeaderboard(
-    entries: LeaderboardEntry[],
-    currentUserId: number,
-    currentRank: number,
-    currentPoints: number,
+  private async onLeaderboardPage(ctx: Context): Promise<void> {
+    try {
+      await ctx.answerCallbackQuery();
+    } catch {
+      /* ignore */
+    }
+
+    const [, pageStr] = ctx.match as RegExpMatchArray;
+    const page = Math.max(1, parseInt(pageStr, 10));
+    const telegramId = BigInt(ctx.from!.id);
+    const user = await this.usersService.findByTelegramId(telegramId);
+    if (!user) return;
+
+    const t = this.i18n.t(user.language);
+    const { text, keyboard } = await this.fetchLeaderboardPage(
+      user.id,
+      user.points,
+      page,
+      t,
+    );
+
+    try {
+      await ctx.editMessageText(text, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+      });
+    } catch (err) {
+      const isNotModified =
+        err instanceof GrammyError &&
+        err.description.includes('message is not modified');
+      if (!isNotModified) {
+        this.logger.warn(
+          `[main-menu] editMessageText failed: ${err instanceof GrammyError ? err.description : String(err)}`,
+        );
+      }
+    }
+  }
+
+  private async fetchLeaderboardPage(
+    userId: number,
+    userPoints: number,
+    page: number,
     t: Translations,
-  ): string {
+  ): Promise<{ text: string; keyboard: InlineKeyboard }> {
+    const skip = (page - 1) * PAGE_SIZE;
+    const [leaderboard, rank] = await Promise.all([
+      this.usersService.getLeaderboard(PAGE_SIZE, skip),
+      this.usersService.getUserRank(userId),
+    ]);
+
     const m = t.mainMenu;
     let text = `${m.ratingTitle}\n\n`;
 
-    if (entries.length === 0) {
+    if (leaderboard.length === 0) {
       text += `${m.ratingEmpty}\n`;
     } else {
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        const prefix = MEDALS[i] ?? `${i + 1}.`;
+      for (let i = 0; i < leaderboard.length; i++) {
+        const entry = leaderboard[i];
+        const absoluteIndex = skip + i;
+        const prefix = MEDALS[absoluteIndex] ?? `${absoluteIndex + 1}.`;
         const name = entry.firstName || entry.telegramUsername || m.ratingAnon;
-        const isMe = entry.id === currentUserId;
+        const isMe = entry.id === userId;
         const pts = entry.points.toLocaleString();
         text += `${prefix} ${isMe ? '👤 ' : ''}${name} — ${pts} ${t.common.points}\n`;
       }
     }
 
-    const inTop10 = entries.some((e) => e.id === currentUserId);
-    if (!inTop10) {
-      text += '\n─────────────────\n';
-      text += m.ratingMyRank(currentRank, currentPoints.toLocaleString());
+    text += '\n─────────────────\n';
+    text += m.ratingMyRank(rank, userPoints.toLocaleString());
+
+    const keyboard = new InlineKeyboard();
+    if (page > 1) {
+      keyboard.text('⬅️ Orqaga', `leaderboard:page:${page - 1}`);
+    }
+    if (leaderboard.length === PAGE_SIZE) {
+      keyboard.text('➡️ Oldinga', `leaderboard:page:${page + 1}`);
     }
 
-    return text;
+    return { text, keyboard };
   }
 
   // ─── Referral ─────────────────────────────────────────────────────────────────

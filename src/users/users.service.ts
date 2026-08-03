@@ -82,11 +82,12 @@ export class UsersService {
   }
 
   /** Top `take` registered users by points. Earlier joiners break ties. */
-  async getLeaderboard(take = 10): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(take = 20, skip = 0): Promise<LeaderboardEntry[]> {
     return this.prisma.user.findMany({
       where: { registrationCompleted: true },
       orderBy: [{ points: 'desc' }, { createdAt: 'asc' }],
       take,
+      skip,
       select: {
         id: true,
         firstName: true,

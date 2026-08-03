@@ -103,7 +103,7 @@ export const ru = {
     balanceTodayDist: (km: string) => `📏 Расстояние: ${km} км`,
     balanceTodayGoalDone: '✅ Цель выполнена!',
     balanceNoLocation: 'Локация ещё не отправлена',
-    ratingTitle: '🏆 *ТОП-10 Рейтинг*',
+    ratingTitle: '🏆 *Рейтинг*',
     ratingEmpty: 'В рейтинге пока никого нет.',
     ratingAnon: 'Пользователь',
     ratingMyRank: (rank: number, pts: string) =>

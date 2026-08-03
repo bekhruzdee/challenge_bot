@@ -104,7 +104,7 @@ Davom etish uchun quyidagi tugmani bosing.`,
     balanceTodayDist: (km: string) => `📏 Masofa: ${km} km`,
     balanceTodayGoalDone: '✅ Maqsad bajarildi!',
     balanceNoLocation: 'Hali lokatsiya yuborilmagan',
-    ratingTitle: '🏆 *TOP-10 Reyting*',
+    ratingTitle: '🏆 *Reyting*',
     ratingEmpty: "Hali hech kim ro'yxatda yo'q.",
     ratingAnon: 'Foydalanuvchi',
     ratingMyRank: (rank: number, pts: string) =>
