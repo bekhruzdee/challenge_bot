@@ -78,8 +78,12 @@ export class RegistrationService {
     data: RegistrationData,
     region: string,
   ): Promise<void> {
-    // Read referrerId before updating so we can award the bonus afterwards.
+    // Read referrerId and referral count before updating so the count is not
+    // inflated by the current user's own registration completing.
     const user = await this.usersService.findById(userId);
+    const referralCount = user?.referrerId
+      ? await this.usersService.getCompletedReferralCount(user.referrerId)
+      : 0;
 
     await this.usersService.update(userId, {
       firstName: data.firstName,
@@ -94,14 +98,11 @@ export class RegistrationService {
     await this.cache.del(`session:${userId}`);
 
     // Award the referral bonus to the referrer exactly once.
-    if (user?.referrerId) {
-      const referralCount = await this.usersService.getCompletedReferralCount(user.referrerId);
-      if (referralCount <= 5) {
-        await this.usersService.addPoints(
-          user.referrerId,
-          REFERRAL_BONUS_POINTS,
-        );
-      }
+    if (user?.referrerId && referralCount < 5) {
+      await this.usersService.addPoints(
+        user.referrerId,
+        REFERRAL_BONUS_POINTS,
+      );
     }
   }
 }
